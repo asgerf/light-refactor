@@ -1,0 +1,9 @@
+Manifest-Version: 1.0
+Bundle-ManifestVersion: 2
+Bundle-Name: jshtml
+Bundle-SymbolicName: dk.brics.jshtml
+Bundle-Version: 1.0.0.qualifier
+Bundle-ClassPath: jshtml.jar,
+ lib/htmlcleaner-212-mod.jar,
+ lib/commons-lang3-3.1.jar
+Export-Package: dk.brics.jshtml

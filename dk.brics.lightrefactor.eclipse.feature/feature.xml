@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feature
+      id="dk.brics.lightrefactor.eclipse.feature"
+      label="LightRefactor"
+      version="1.0.0"
+      provider-name="Aarhus University">
+
+   <description>
+      Rename Identifier refactoring for JavaScript.
+   </description>
+
+   <copyright>
+      Copyright 2013 Aarhus University. All rights reserved.
+   </copyright>
+
+   <license url="http://www.eclipse.org/legal/epl-v10.html">
+      This plug-in is provided to you under the terms of the Eclipse Public License Version 1.0
+      (&quot;EPL&quot;), a copy of which is available at http://www.eclipse.org/legal/epl-v10.html.
+   </license>
+
+   <plugin
+         id="dk.brics.lightrefactor.eclipse"
+         download-size="0"
+         install-size="0"
+         version="0.0.0"
+         unpack="false"/>
+
+   <plugin
+         id="dk.brics.jshtml"
+         download-size="0"
+         install-size="0"
+         version="0.0.0"
+         unpack="false"/>
+
+   <plugin
+         id="dk.brics.lightrefactor"
+         download-size="0"
+         install-size="0"
+         version="0.0.0"
+         unpack="false"/>
+
+</feature>

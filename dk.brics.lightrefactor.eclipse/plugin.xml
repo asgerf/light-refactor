@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?eclipse version="3.4"?>
+<plugin>
+
+   <extension
+         point="org.eclipse.ui.commands">
+      <command
+            categoryId="org.eclipse.wst.jsdt.ui.category.refactoring"
+            description="Change the name of a variable or object property."
+            id="dk.brics.lightrefactor.rename-identifier"
+            name="Rename Identifier">
+      </command>
+   </extension>
+   <extension
+         point="org.eclipse.ui.handlers">
+      <handler
+            commandId="dk.brics.lightrefactor.rename-identifier"
+            class="dk.brics.lightrefactor.eclipse.handlers.RenameHandler">
+      </handler>
+   </extension>
+   <extension
+         point="org.eclipse.ui.bindings">
+      <key
+            commandId="dk.brics.lightrefactor.rename-identifier"
+            contextId="org.eclipse.wst.jsdt.ui.javaEditorScope"
+            sequence="M1+R"
+            schemeId="org.eclipse.ui.defaultAcceleratorConfiguration">
+      </key>
+      <key
+            commandId="dk.brics.lightrefactor.rename-identifier"
+            contextId="org.eclipse.wst.html.core.htmlsource"
+            schemeId="org.eclipse.ui.defaultAcceleratorConfiguration"
+            sequence="M1+R">
+      </key>
+   </extension>
+   <extension
+         point="org.eclipse.ui.menus">
+      <menuContribution
+            locationURI="menu:org.eclipse.ui.main.menu?after=edit">
+         <menu
+               id="org.eclipse.wst.jsdt.ui.refactoring.menu"
+               label="Refactor">
+            <command
+                  commandId="dk.brics.lightrefactor.rename-identifier"
+                  label="Rename Identifier..."
+                  style="push">
+            </command>
+            <visibleWhen
+                  checkEnabled="false">
+               <with
+                     variable="activeEditorId">
+                  <equals
+                        value="org.eclipse.wst.jsdt.ui.CompilationUnitEditor">
+                  </equals>
+               </with>
+            </visibleWhen>
+         </menu>
+      </menuContribution>
+   </extension>
+
+</plugin>
