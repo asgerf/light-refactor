@@ -2,6 +2,7 @@ package dk.brics.lightrefactor
 
 import dk.brics.lightrefactor.types.TypeInference
 import dk.brics.lightrefactor.types.TypeNode
+import dk.brics.lightrefactor.types.Typing
 import java.util.ArrayList
 import java.util.HashMap
 import java.util.List
@@ -18,7 +19,7 @@ class Renaming {
   val Asts asts
   val AstNode targetNode
   var List<ArrayList<AstNode>> questions;
-  extension var TypeInference types
+  extension var Typing types
   
   def getQuestions() { questions }
   
@@ -41,7 +42,7 @@ class Renaming {
   
   private def void computeTypes() {
     if (types == null) {
-      types = new TypeInference(asts)
+      types = new TypeInference(asts).inferTypes()
     }
   }
   
