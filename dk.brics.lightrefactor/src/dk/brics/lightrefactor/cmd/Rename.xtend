@@ -2,7 +2,6 @@ package dk.brics.lightrefactor.cmd
 
 import dk.brics.lightrefactor.Asts
 import dk.brics.lightrefactor.GenericSource
-import dk.brics.lightrefactor.Offsets
 import dk.brics.lightrefactor.Renaming
 import dk.brics.lightrefactor.types.TypeNode
 import dk.brics.lightrefactor.util.Console
@@ -30,8 +29,9 @@ class Rename {
   def static void main(String[] args) {
     val file = new File(args.get(0))
     val sourceLines = IO::readLines(file)
-    extension val offsets = new Offsets(sourceLines)
-    val ast = new Parser().parse(sourceLines.join("\n"), file.getPath, 0)
+    val str = sourceLines.join("\n")
+    extension val offsets = new Offsets(str)
+    val ast = new Parser().parse(str, file.getPath, 0)
     
     
     // collect all property name tokens
