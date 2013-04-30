@@ -1,19 +1,20 @@
-package dk.brics.lightrefactor;
+package dk.brics.lightrefactor.types;
 
 import java.util.LinkedList;
 import java.util.Map;
 
-public class Unifier {
+
+public class TypeUnifier {
   
-  private LinkedList<UnifyNode> queue = new LinkedList<UnifyNode>();
+  private LinkedList<TypeNode> queue = new LinkedList<TypeNode>();
   
-  public void unify(UnifyNode x, UnifyNode y) {
+  public void unify(TypeNode x, TypeNode y) {
     x = x.rep();
     y = y.rep();
     if (x == y)
       return;
     if (x.rank < y.rank) {
-      UnifyNode tmp = x;
+      TypeNode tmp = x;
       x = y;
       y = tmp;
     } else if (x.rank == y.rank) {
@@ -21,8 +22,8 @@ public class Unifier {
     }
     y.parent = x;
     x.namespace |= y.namespace;
-    Map<String,UnifyNode> src;
-    Map<String,UnifyNode> dst;
+    Map<String,TypeNode> src;
+    Map<String,TypeNode> dst;
     if (x.prty.size() < y.prty.size()) {
       dst = y.prty;
       src = x.prty;
@@ -32,8 +33,8 @@ public class Unifier {
       src = y.prty;
     }
     y.prty = null;
-    for (Map.Entry<String,UnifyNode> e : src.entrySet()) {
-      UnifyNode existingNode = dst.get(e.getKey());
+    for (Map.Entry<String,TypeNode> e : src.entrySet()) {
+      TypeNode existingNode = dst.get(e.getKey());
       if (existingNode == null) {
         dst.put(e.getKey(), e.getValue());
       } else {
@@ -42,9 +43,9 @@ public class Unifier {
     }
   }
   
-  public void unifyPrty(UnifyNode x, String prty, UnifyNode y) {
+  public void unifyPrty(TypeNode x, String prty, TypeNode y) {
     x = x.rep();
-    UnifyNode xf = x.prty.get(prty);
+    TypeNode xf = x.prty.get(prty);
     if (xf == null) {
       x.prty.put(prty, y);
     } else {
@@ -52,7 +53,7 @@ public class Unifier {
     }
   }
   
-  public void unifyLater(UnifyNode x, UnifyNode y) {
+  public void unifyLater(TypeNode x, TypeNode y) {
     if (x != y) {
       queue.add(x);
       queue.add(y);
@@ -61,8 +62,8 @@ public class Unifier {
   
   public void complete() {
     while (!queue.isEmpty()) {
-      UnifyNode x = queue.pop();
-      UnifyNode y = queue.pop();
+      TypeNode x = queue.pop();
+      TypeNode y = queue.pop();
       unify(x,y);
     }
   }

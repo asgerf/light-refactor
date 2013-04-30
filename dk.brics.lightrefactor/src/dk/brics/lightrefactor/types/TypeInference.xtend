@@ -1,5 +1,6 @@
-package dk.brics.lightrefactor
+package dk.brics.lightrefactor.types
 
+import dk.brics.lightrefactor.NameRef
 import java.util.ArrayList
 import java.util.HashMap
 import org.mozilla.javascript.Token
@@ -60,13 +61,13 @@ class TypeInference {
     finish()
   }
   
-  private val unifier = new Unifier
-  private val global = new UnifyNode
+  private val unifier = new TypeUnifier
+  private val global = new TypeNode
   
-  private val nodemap = new HashMap<AstNode, UnifyNode>
-  private val scopemap = new HashMap<Scope, UnifyNode>
+  private val nodemap = new HashMap<AstNode, TypeNode>
+  private val scopemap = new HashMap<Scope, TypeNode>
   
-  private val potentialMethods = new ArrayList<UnifyNode> // occurs in pairs of two: host followed by receiver
+  private val potentialMethods = new ArrayList<TypeNode> // occurs in pairs of two: host followed by receiver
   
   private static val VOID = true
   private static val NOT_VOID = false
@@ -77,7 +78,7 @@ class TypeInference {
   private def scopeNode(Scope x) {
     var n = scopemap.get(x)
     if (n == null) {
-      n = new UnifyNode
+      n = new TypeNode
       scopemap.put(x, n)
     }
     return n
@@ -86,19 +87,19 @@ class TypeInference {
   private def typeNode(AstNode x) {
     var n = nodemap.get(x)
     if (n == null) {
-      n = new UnifyNode
+      n = new TypeNode
       nodemap.put(x, n)
     }
     return n
   }
   
-  private def unify(UnifyNode x, UnifyNode ... ys) {
+  private def unify(TypeNode x, TypeNode ... ys) {
     for (y : ys) {
       unifier.unify(x, y)
     }
   }
   
-  private def unifyPrty(UnifyNode x, String name, UnifyNode y) {
+  private def unifyPrty(TypeNode x, String name, TypeNode y) {
     unifier.unifyPrty(x, name, y)
   }
   
@@ -114,7 +115,7 @@ class TypeInference {
     val scope = node.scopeNode
     var x = scope.prty.get(name)
     if (x == null) {
-      x = new UnifyNode
+      x = new TypeNode
       scope.prty.put(name, x)
     }
     return x
@@ -131,7 +132,7 @@ class TypeInference {
     }
   }
   
-  private def addPotentialMethod(UnifyNode host, UnifyNode receiver) {
+  private def addPotentialMethod(TypeNode host, TypeNode receiver) {
     potentialMethods.add(host)
     potentialMethods.add(receiver)
   }
@@ -240,7 +241,7 @@ class TypeInference {
         throw new RuntimeException("JavaScript 1.7+ feature not supported: generator expression")
       FunctionNode: {
         visitStmt(exp.body)
-        val thisNode = new UnifyNode
+        val thisNode = new TypeNode
         unifyPrty(exp.typeNode, "prototype", thisNode)
         unifyPrty(exp.scopeNode, "@this", thisNode)
         if (!exp.name.equals("")) {
@@ -288,14 +289,14 @@ class TypeInference {
             if (prop.getter) {
               val fun = prop.right as FunctionNode
               unifyPrty(fun.scopeNode, "@this", obj)
-              val ret = new UnifyNode
+              val ret = new TypeNode
               unifyPrty(obj, name, ret)
               unifyPrty(fun.scopeNode, "@return", ret)
             } else if (prop.setter) {
               val fun = prop.right as FunctionNode
               unifyPrty(fun.scopeNode, "@this", obj)
               if (fun.paramCount >= 1) {
-                val t = new UnifyNode
+                val t = new TypeNode
                 unifyPrty(obj, name, t)
                 unifyPrty(fun.scopeNode, fun.params.get(0).string, t)
               }
@@ -392,7 +393,7 @@ class TypeInference {
         } else {
           unifyPrty(scope.scopeNode, stmt.name, stmt.typeNode)
         }
-        val thisNode = new UnifyNode
+        val thisNode = new TypeNode
         unifyPrty(stmt.typeNode, "prototype", thisNode)
         unifyPrty(stmt.scopeNode, "@this", thisNode)
         visitStmt(stmt.body)
@@ -489,7 +490,7 @@ class TypeInference {
     unifier.complete()
   }
   
-  def UnifyNode typ(AstNode node) {
+  def TypeNode typ(AstNode node) {
     return node.typeNode.rep()
   } 
   

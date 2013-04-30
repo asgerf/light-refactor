@@ -1,16 +1,18 @@
 package dk.brics.lightrefactor
 
+import dk.brics.lightrefactor.types.TypeInference
+import dk.brics.lightrefactor.types.TypeNode
 import java.util.ArrayList
 import java.util.HashMap
 import java.util.List
+import org.mozilla.javascript.Function
 import org.mozilla.javascript.ast.AstNode
 import org.mozilla.javascript.ast.Label
+import org.mozilla.javascript.ast.LabeledStatement
 import org.mozilla.javascript.ast.Name
 
 import static extension dk.brics.lightrefactor.NameRef.*
 import static extension dk.brics.lightrefactor.util.MapExtensions.*
-import org.mozilla.javascript.ast.LabeledStatement
-import org.mozilla.javascript.Function
 
 class Renaming {
   val Asts asts
@@ -57,7 +59,7 @@ class Renaming {
     asts.visitAll [ node | switch node { case node.isPrty && node.name == originalName: names.add(node) } ]
     
     // map types to their references
-    val base2names = new HashMap<UnifyNode, ArrayList<AstNode>>
+    val base2names = new HashMap<TypeNode, ArrayList<AstNode>>
     for (name : names) {
       base2names.getList(name.base.typ).add(name)
     }

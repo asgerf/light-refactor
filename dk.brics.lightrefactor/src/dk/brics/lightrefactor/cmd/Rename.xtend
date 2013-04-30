@@ -4,7 +4,7 @@ import dk.brics.lightrefactor.Asts
 import dk.brics.lightrefactor.GenericSource
 import dk.brics.lightrefactor.Offsets
 import dk.brics.lightrefactor.Renaming
-import dk.brics.lightrefactor.UnifyNode
+import dk.brics.lightrefactor.types.TypeNode
 import dk.brics.lightrefactor.util.Console
 import dk.brics.lightrefactor.util.IO
 import java.io.File
@@ -18,7 +18,7 @@ import static extension dk.brics.lightrefactor.NameRef.*
 import static extension dk.brics.lightrefactor.util.MapExtensions.*
 
 @Data class GroupKey {
-  UnifyNode type
+  TypeNode type
   String name
 }
 
