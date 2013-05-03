@@ -4,6 +4,7 @@ import org.mozilla.javascript.ast.AstNode
 import org.mozilla.javascript.ast.AstRoot
 import org.mozilla.javascript.ast.BreakStatement
 import org.mozilla.javascript.ast.ContinueStatement
+import org.mozilla.javascript.ast.ForInLoop
 import org.mozilla.javascript.ast.Label
 import org.mozilla.javascript.ast.Name
 import org.mozilla.javascript.ast.NumberLiteral
@@ -11,6 +12,7 @@ import org.mozilla.javascript.ast.ObjectProperty
 import org.mozilla.javascript.ast.PropertyGet
 import org.mozilla.javascript.ast.Scope
 import org.mozilla.javascript.ast.StringLiteral
+import org.mozilla.javascript.ast.VariableDeclaration
 
 class NameRef {
   /** The contents of `name` if it is a Name, StringLiteral, or Label */
@@ -68,6 +70,18 @@ class NameRef {
       Name: name.absolutePosition
       StringLiteral: 1 + name.absolutePosition
       Label: name.absolutePosition
+    }
+  }
+  
+  /**
+   * The variable Name node or expression that is the left-hand side in the given for-in loop. 
+   */
+  def static iteratorNode(ForInLoop stmt) {
+    if (stmt.getIterator instanceof VariableDeclaration) {
+      val decl = stmt.getIterator as VariableDeclaration
+      decl.variables.head.target
+    } else {
+      stmt.getIterator
     }
   }
 }

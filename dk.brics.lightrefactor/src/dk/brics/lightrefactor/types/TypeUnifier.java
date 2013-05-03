@@ -6,7 +6,7 @@ import java.util.Map;
 
 public class TypeUnifier {
   
-  private LinkedList<TypeNode> queue = new LinkedList<TypeNode>();
+  private LinkedList<TypeNode> typeQueue = new LinkedList<TypeNode>();
   
   public void unify(TypeNode x, TypeNode y) {
     x = x.rep();
@@ -55,15 +55,15 @@ public class TypeUnifier {
   
   public void unifyLater(TypeNode x, TypeNode y) {
     if (x != y) {
-      queue.add(x);
-      queue.add(y);
+      typeQueue.add(x);
+      typeQueue.add(y);
     }
   }
   
   public void complete() {
-    while (!queue.isEmpty()) {
-      TypeNode x = queue.pop();
-      TypeNode y = queue.pop();
+    while (!typeQueue.isEmpty()) {
+      TypeNode x = typeQueue.pop();
+      TypeNode y = typeQueue.pop();
       unify(x,y);
     }
   }

@@ -127,6 +127,7 @@ class TypeInference {
           if (exp.element instanceof StringLiteral) { // TODO: ignore strings that look like numbers
             unify(exp.target.typ.getPrty((exp.element as StringLiteral).value), exp.typ)
           }
+          unify(exp.element.typ.getPrty("@prty-name-of"), exp.target.typ)
           return NOT_PRIMITIVE
         }
       EmptyExpression:
@@ -326,6 +327,7 @@ class TypeInference {
         }
         visitExp(stmt.iteratedObject, NOT_VOID)
         visitStmt(stmt.body)
+        unify(stmt.iteratorNode.typ.getPrty("@prty-name-of"), stmt.iteratedObject.typ)
       }
       ForLoop: {
         if (stmt.initializer != null) {
@@ -396,10 +398,10 @@ class TypeInference {
       }
       VariableDeclaration: {
         for (vinit : stmt.variables) {
+          visitExp(vinit.target, VOID)
           if (vinit.initializer != null) {
             visitExp(vinit.initializer, NOT_VOID)
-            val scope = (vinit.target as Name).definingScope
-            unify(scope.getVar(vinit.target.string), vinit.initializer.typ)
+            unify(vinit.target.typ, vinit.initializer.typ)
           }
         }
       }
