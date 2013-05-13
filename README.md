@@ -1,5 +1,5 @@
-Light-refactor
-==============
+Light-refactor (also known as JSRenamer)
+========================================
 
 Lightweight refactoring tools for JavaScript
 
