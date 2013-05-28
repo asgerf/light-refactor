@@ -124,10 +124,9 @@ class TypeInference {
       ElementGet: {
           visitExp(exp.target, NOT_VOID)
           visitExp(exp.element, NOT_VOID)
-          if (exp.element instanceof StringLiteral) { // TODO: ignore strings that look like numbers
+          if (exp.element instanceof StringLiteral) {
             unify(exp.target.typ.getPrty((exp.element as StringLiteral).value), exp.typ)
           }
-          unify(exp.element.typ.getPrty("@prty-name-of"), exp.target.typ)
           return NOT_PRIMITIVE
         }
       EmptyExpression:
@@ -327,7 +326,6 @@ class TypeInference {
         }
         visitExp(stmt.iteratedObject, NOT_VOID)
         visitStmt(stmt.body)
-        unify(stmt.iteratorNode.typ.getPrty("@prty-name-of"), stmt.iteratedObject.typ)
       }
       ForLoop: {
         if (stmt.initializer != null) {
@@ -428,7 +426,7 @@ class TypeInference {
   }
   
   private def finish() {
-    // unify window with global object [TODO: externalize native model]
+    // unify window with global object
     unifier.unifyPrty(global, "window", global)
     
     unifier.complete()

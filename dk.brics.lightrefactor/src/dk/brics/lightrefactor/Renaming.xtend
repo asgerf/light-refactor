@@ -75,11 +75,7 @@ class Renaming {
       base2names.getList(name.base.typ).add(name)
     }
     
-    // order the tokens within each group by line number 
-//    base2names.values.forEach[it.sortInplaceBy[it.lineno]]
-    
-    // get the list of groups, ordered by the earliest first occurrence
-    return base2names.values.toList //.sortBy[it.get(0).lineno].toList
+    return base2names.values.toList
   }
   
   private def List<ArrayList<AstNode>> computeLocalQuestions(AstNode targetNode) {
