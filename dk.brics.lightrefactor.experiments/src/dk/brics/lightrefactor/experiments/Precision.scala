@@ -46,11 +46,11 @@ object Precision {
   
   def analyze(asts:Asts, pred:AstNode => Boolean) = {
     // collect all property name tokens
-    var nameRefs = new mutable.ListBuffer[AstNode]
+    val nameRefs = new mutable.ListBuffer[AstNode]
     asts.visitAll(new VisitAll {
       override def handle(node:AstNode) {
         if (NameRef.isPrty(node) && includeRef(node) && pred(node)) {
-          nameRefs.add(node)
+          nameRefs += node
         }
       }
     });
@@ -61,9 +61,6 @@ object Precision {
     for (ref <- nameRefs) {
       count += NameRef.name(ref) -> (1 + count.getOrElse(NameRef.name(ref),0))
     }
-    
-    // discard names that only occur once
-//    nameRefs = for (ref <- nameRefs if count(NameRef.name(ref)) > 1) yield ref
     
     val renaming = new Renaming(asts)
     val nameStats = (for (name <- count.keys if count(name) > 1) yield {
