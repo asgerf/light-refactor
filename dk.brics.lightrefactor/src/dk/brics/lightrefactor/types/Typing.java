@@ -1,5 +1,7 @@
 package dk.brics.lightrefactor.types;
 
+import java.util.Set;
+
 import org.mozilla.javascript.ast.AstNode;
 import org.mozilla.javascript.ast.Scope;
 
@@ -35,6 +37,8 @@ public interface Typing {
    */
   TypeNode getVar(Scope scope, String varName);
   
+  Set<String> variables(Scope scope);
+  
   /**
    * Returns the type of the given property, or <tt>null</tt> if the type does not have
    * the given property.
@@ -47,5 +51,7 @@ public interface Typing {
    * the same type.
    */
   TypeNode getPrty(TypeNode type, String prty);
+  
+  Set<String> properties(TypeNode type);
   
 }

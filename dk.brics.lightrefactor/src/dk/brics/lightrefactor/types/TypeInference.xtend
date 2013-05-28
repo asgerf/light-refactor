@@ -495,6 +495,9 @@ class TypingImpl implements Typing {
   override def getVar(Scope scope, String varName) {
     scope.scopeObj.getPrty(varName)
   }
+  override def variables(Scope scope) {
+    scope.scopeObj.rep.prty.keySet
+  }
   
   override def lookupPrty(TypeNode type, String varName) {
     val t = type.rep.prty.get(varName)
@@ -512,6 +515,9 @@ class TypingImpl implements Typing {
       type.rep.prty.put(varName, t)
     }
     t
+  }
+  override def properties(TypeNode type) {
+    type.rep.prty.keySet
   }
   
 }

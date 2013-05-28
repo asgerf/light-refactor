@@ -37,7 +37,8 @@ interface ISource {
 @Data class HtmlSource implements ISource {
   val File file
   val int offset
-  override def toString() { file.getName + "@" + offset }
+  val int lineno
+  override def toString() { file.getName + "@" + lineno }
 }
 
 /**
@@ -88,6 +89,16 @@ class Asts implements Iterable<AstRoot> {
     }
   }
   
+  /** The absolute line number of the given node, taking HTML line offsets into account */
+  def absoluteLineNo(AstNode node) {
+    val src = source(node)
+    switch src {
+      HtmlSource:
+        return src.lineno + node.lineno
+      default:
+        return node.lineno
+    }
+  }
   /** The source from which the given node originated (same for all nodes in a given AST) */
   def source(AstNode node) {
     ast2src.get(node.astRoot)

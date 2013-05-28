@@ -1,5 +1,6 @@
 package dk.brics.lightrefactor.types;
 
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.Map;
 

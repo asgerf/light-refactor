@@ -72,7 +72,7 @@ class Loader {
         switch frag {
           InlineJs: {
             val ast = new Parser(compilerEnv).parse(frag.code, file.getPath, frag.line)
-            asts.add(new HtmlSource(file, frag.offset), ast)
+            asts.add(new HtmlSource(file, frag.offset, frag.line), ast)
           }
           ExternJs: {
             val basedir = file.getParent
