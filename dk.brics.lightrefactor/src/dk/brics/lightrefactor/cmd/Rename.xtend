@@ -82,10 +82,11 @@ class Rename {
     
     val asts = new Asts
     asts.add(new GenericSource, ast)
-    val renaming = new Renaming(asts, selectedToken)
+    val renaming = new Renaming(asts)
+    val questions = renaming.renameNode(selectedToken)
     
     val line2substitutions = new HashMap<Integer, ArrayList<Integer>> // linenr -> line positions to replace
-    for (quest : renaming.questions) {
+    for (quest : questions) {
       var shouldRename = false
       if (quest.contains(selectedToken)) {
         shouldRename = true

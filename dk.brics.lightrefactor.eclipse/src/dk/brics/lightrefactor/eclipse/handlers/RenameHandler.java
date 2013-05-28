@@ -308,7 +308,8 @@ public class RenameHandler extends AbstractHandler {
 
     // ===================== COMPUTE RENAMING INFO =====================
     
-    Renaming renaming = new Renaming(asts, targetName);
+    Renaming renaming = new Renaming(asts);
+    List<ArrayList<AstNode>> questions = renaming.renameNode(targetName);
     
     
     // ===================== ORDERING OF QUESTIONS =====================
@@ -339,12 +340,12 @@ public class RenameHandler extends AbstractHandler {
     };
     
     // Order questions within each group
-    for (List<AstNode> list : renaming.getQuestions()) {
+    for (List<AstNode> list : questions) {
       Collections.sort(list, tokenOrd);
     }
     
     // Order questions by their first token
-    Collections.sort(renaming.getQuestions(), new Comparator<ArrayList<AstNode>>() {
+    Collections.sort(questions, new Comparator<ArrayList<AstNode>>() {
       @Override
       public int compare(ArrayList<AstNode> o1, ArrayList<AstNode> o2) {
         return tokenOrd.compare(o1.get(0), o2.get(0));
@@ -359,10 +360,10 @@ public class RenameHandler extends AbstractHandler {
     
     // Automatically answer the question concerning the selected token
     // (Handling this here makes it easier to implement the back button in the question loop)
-    for (int i=0; i<renaming.getQuestions().size(); i++) {
-      if (renaming.getQuestions().get(i).contains(targetName)) {
-        autoTokens.addAll(renaming.getQuestions().get(i));
-        renaming.getQuestions().remove(i);
+    for (int i=0; i<questions.size(); i++) {
+      if (questions.get(i).contains(targetName)) {
+        autoTokens.addAll(questions.get(i));
+        questions.remove(i);
         break;
       }
     }
@@ -370,8 +371,8 @@ public class RenameHandler extends AbstractHandler {
     // Ask the questions
     int questionIndex = 0;
     List<Integer> yesQuestions = new ArrayList<Integer>();
-    while (questionIndex < renaming.getQuestions().size()) {
-      List<AstNode> names = renaming.getQuestions().get(questionIndex);
+    while (questionIndex < questions.size()) {
+      List<AstNode> names = questions.get(questionIndex);
       // select the first token in the editor
       AstNode name = names.get(0);
       FileSource src = (FileSource) asts.source(name);
@@ -442,8 +443,8 @@ public class RenameHandler extends AbstractHandler {
     tokensToRename.addAll(autoTokens);
     modifiedFiles.add(currentResource);
     for (int q : yesQuestions) {
-      tokensToRename.addAll(renaming.getQuestions().get(q));
-      for (AstNode tok : renaming.getQuestions().get(q)) {
+      tokensToRename.addAll(questions.get(q));
+      for (AstNode tok : questions.get(q)) {
         FileSource rsrc = (FileSource)asts.source(tok);
         modifiedFiles.add(rsrc.getFileResource());
       }

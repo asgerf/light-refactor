@@ -17,27 +17,32 @@ import static extension dk.brics.lightrefactor.util.MapExtensions.*
 
 class Renaming {
   val Asts asts
-  val AstNode targetNode
-  var List<ArrayList<AstNode>> questions;
   extension var Typing types
   
-  def getQuestions() { questions }
-  
-  new (Asts asts, AstNode targetNode) {
+  new (Asts asts) {
     this.asts = asts
-    this.targetNode = targetNode
-    
+  }
+  new (Asts asts, Typing types) {
+    this.asts = asts
+    this.types = types
+  }
+  
+  def List<ArrayList<AstNode>> renameNode(AstNode targetNode) {
     if (targetNode.isPrty) {
-      this.computePropertyQuestions()
+      this.computePropertyQuestions(targetNode)
     } else if (targetNode.isLocalVar) {
-      this.computeLocalQuestions()
+      this.computeLocalQuestions(targetNode)
     } else if (targetNode.isGlobalVar) {
-      this.computeGlobalQuestions()
+      this.computeGlobalQuestions(targetNode)
     } else if (targetNode.isLabel) {
-      this.computeLabelQuestions()
+      this.computeLabelQuestions(targetNode)
     } else {
       throw new IllegalArgumentException("Cannot rename node: " + targetNode.class.simpleName)
     }
+  }
+  
+  def List<ArrayList<AstNode>> renameProperty(String prty) {
+    computePropertyQuestionsWithName(prty)
   }
   
   private def void computeTypes() {
@@ -46,14 +51,19 @@ class Renaming {
     }
   }
   
-  private def void computePropertyQuestions() {
+  private def List<ArrayList<AstNode>> computePropertyQuestions(AstNode targetNode) {
     computeTypes()
     val originalName = targetNode.name
     
     if (targetNode.base.typ == types.global) {
-      computeGlobalQuestions()
-      return
+      return computeGlobalQuestions(targetNode)
+    } else {
+      return computePropertyQuestionsWithName(originalName)
     }
+  }
+  
+  private def List<ArrayList<AstNode>> computePropertyQuestionsWithName(String originalName) {  
+    computeTypes()
     
     // collect all property name tokens
     val names = new ArrayList<AstNode>
@@ -69,10 +79,10 @@ class Renaming {
 //    base2names.values.forEach[it.sortInplaceBy[it.lineno]]
     
     // get the list of groups, ordered by the earliest first occurrence
-    this.questions = base2names.values.toList //.sortBy[it.get(0).lineno].toList
+    return base2names.values.toList //.sortBy[it.get(0).lineno].toList
   }
   
-  private def void computeLocalQuestions() {
+  private def List<ArrayList<AstNode>> computeLocalQuestions(AstNode targetNode) {
     val scope = (targetNode as Name).definingScope
     val names = new ArrayList<AstNode>
     scope.visit [ node | 
@@ -82,7 +92,7 @@ class Renaming {
       }
       true
     ]
-    this.questions = #[names]
+    return #[names]
   }
   
   private def LabeledStatement getTargetStmt(AstNode labelName) {
@@ -100,7 +110,7 @@ class Renaming {
     null
   }
   
-  private def void computeLabelQuestions() {
+  private def List<ArrayList<AstNode>> computeLabelQuestions(AstNode targetNode) {
     val name = targetNode.name
     val labeledStmt = getTargetStmt(targetNode)
     val tokens = new ArrayList<AstNode>
@@ -117,11 +127,12 @@ class Renaming {
       }
       true
     ]
-    questions = new ArrayList
+    val questions = new ArrayList
     questions.add(tokens)
+    return questions
   }
   
-  private def void computeGlobalQuestions() {
+  private def List<ArrayList<AstNode>> computeGlobalQuestions(AstNode targetNode) {
     computeTypes()
     val originalName = targetNode.name
     
@@ -139,11 +150,12 @@ class Renaming {
       }
     ]
     
-    questions = new ArrayList
+    val questions = new ArrayList
     questions.add(names)
     if (objNames.size > 0) {
       questions.add(objNames)
     }
+    return questions
   }
   
   
