@@ -11,6 +11,7 @@ import dk.brics.lightrefactor.VisitAll
 import dk.brics.lightrefactor.Renaming
 import dk.brics.lightrefactor.Loader
 import scala.collection.JavaConversions._
+import dk.brics.lightrefactor.util.IO
 
 
 /**
@@ -31,12 +32,14 @@ object Precision {
   }
   
   case class NameStats(name:String, questions:List[List[AstNode]]) {
+    lazy val equiv = Equivalence.fromGroups(questions)
     lazy val numTokens = questions.map(_.size).sum
     def searchReplaceQuestions = numTokens - 1
     def renameQuestions = questions.size - 1
     def effect = percent(searchReplaceQuestions - renameQuestions, searchReplaceQuestions)
   }
   case class Stats(nameStats:List[NameStats]) {
+    lazy val name2stats = nameStats.map(q => (q.name,q)).toMap
     lazy val searchReplaceQuestions = nameStats.map(_.searchReplaceQuestions).sum
     lazy val renameQuestions = nameStats.map(_.renameQuestions).sum
     def effect = percent(searchReplaceQuestions - renameQuestions, searchReplaceQuestions)
@@ -70,6 +73,7 @@ object Precision {
       val questions = renaming.renameProperty(name).
           map(_.filter(q => includeRef(q) && pred(q)).toList). // filter out ignored tokens
           filter(!_.isEmpty).                                  // ignore questions that are now empty
+          sortBy(q => asts.source(q.head) + ":" + q.head.getAbsolutePosition).
           toList
       NameStats(name, questions)
     }).toList
@@ -131,7 +135,32 @@ object Precision {
       def printRelativeStats(name:String, whole:Stats, isolated:Stats) {
         val delta = isolated.effect - whole.effect
         val deltaStr = if (delta == 0) "" else "[%6.2f]".format(delta)
-        Console.printf("%-30s %6.2f %s\n", name, whole.effect, deltaStr)
+        
+        val suspiciousPairs = new mutable.ListBuffer[(AstNode,AstNode)]
+        for (wholeSt <- whole.nameStats) {
+          isolated.name2stats.get(wholeSt.name) match {
+            case None =>
+            case Some(isolatedSt) =>
+              suspiciousPairs ++= Equivalence.nonSubsetItems(isolatedSt.equiv, wholeSt.equiv)
+          }
+        }
+        var suspiciousStr = ""
+        if (suspiciousPairs.size > 0) {
+          val outfile = "output/suspicious-" + name + ".txt"
+          val writer = new FileWriter(new File(outfile))
+          try {
+            for ((x,y) <- suspiciousPairs) {
+              writer.write("\"" + NameRef.name(x) + "\" at " + asts.source(x) + ":" + (1+asts.absoluteLineNo(x)) + 
+                           " and " + asts.source(y) + ":" + (1+asts.absoluteLineNo(y)))
+              writer.write("\n")
+            }
+          } finally {
+            writer.close()
+          }
+          suspiciousStr = "[potential failure: see " + outfile + "]"
+        }
+        
+        Console.printf("%-30s %6.2f %s %s\n", name, whole.effect, deltaStr, suspiciousStr)
       }
       
       {

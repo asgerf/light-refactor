@@ -43,3 +43,46 @@ class Equivalence[T] {
     r
   }
 }
+
+object Equivalence {
+  /**
+   * Computes representative map given a list of groupings.
+   * If there are duplicates, the behaviour is undefined.
+   */
+  def fromGroups[T](groups:Traversable[Traversable[T]]) = {
+    val map = new mutable.HashMap[T,T]
+    for (list <- groups if !list.isEmpty) {
+      val hd = list.head
+      for (item <- list) {
+        map += item -> hd
+      }
+    }
+    map.toMap
+  }
+  
+  /**
+   * True if the equivalence relation imposed by the first map is a subset of the
+   * relation imposed by the second map.
+   */
+  def isSubset[T](small:Map[T,T], large:Map[T,T]) : Boolean = {
+    for ((k,v) <- small) {
+      if (large(v) != large(k))
+        return false;
+    }
+    true
+  }
+  
+  /**
+   * Like `isSubset`, but returns examples of pairs that are related in the first
+   * argument, but not in the second.
+   */
+  def nonSubsetItems[T](small:Map[T,T], large:Map[T,T]) = {
+    val examples = new mutable.ListBuffer[(T,T)]
+    for ((k,v) <- small) {
+      if (large(v) != large(k)) {
+        examples += ((v,k))
+      }
+    }
+    examples.toList
+  }
+}
