@@ -30,7 +30,10 @@ object Precision {
       y / x
   }
   
-  case class NameStats(name:String, searchReplaceQuestions:Int, renameQuestions:Int) {
+  case class NameStats(name:String, questions:List[List[AstNode]]) {
+    lazy val numTokens = questions.map(_.size).sum
+    def searchReplaceQuestions = numTokens - 1
+    def renameQuestions = questions.size - 1
     def effect = percent(searchReplaceQuestions - renameQuestions, searchReplaceQuestions)
   }
   case class Stats(nameStats:List[NameStats]) {
@@ -65,11 +68,10 @@ object Precision {
     val renaming = new Renaming(asts)
     val nameStats = (for (name <- count.keys if count(name) > 1) yield {
       val questions = renaming.renameProperty(name).
-          map(_.filter(q => includeRef(q) && pred(q))). // filter out ignored tokens
-          filter(!_.isEmpty)                            // ignore questions that are now empty
-      NameStats(name = name, 
-                searchReplaceQuestions = count(name) - 1, 
-                renameQuestions = questions.size - 1)
+          map(_.filter(q => includeRef(q) && pred(q)).toList). // filter out ignored tokens
+          filter(!_.isEmpty).                                  // ignore questions that are now empty
+          toList
+      NameStats(name, questions)
     }).toList
     
     Stats(nameStats)
