@@ -8,9 +8,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 import name.fraser.neil.plaintext.diff_match_patch;
-import name.fraser.neil.plaintext.diff_match_patch.Diff;
-import name.fraser.neil.plaintext.diff_match_patch.Operation;
 import name.fraser.neil.plaintext.diff_match_patch.Patch;
+import dk.brics.jshtml.Html;
+import dk.brics.jshtml.HtmlJs;
+import dk.brics.jshtml.InlineJs;
 
 public class TestOffsets {
   private static String readReader(Reader reader) throws IOException {
