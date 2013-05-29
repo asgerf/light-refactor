@@ -140,7 +140,7 @@ public class Html {
     int startOfValue = -1;  // inclusive
     int endOfValue = -1; // exclusive
     int endOfAttrName = -1; // exclusive
-    int i = endOfOpenTag-2; // skip the '>'
+    int i = endOfOpenTag-1; // skip the '>'
     int state = INIT;
     loop: 
     while (true) {
@@ -149,7 +149,7 @@ public class Html {
       i -= 1;
       switch (state) {
       case INIT:
-        if (c == '/' || Character.isWhitespace(c)) {
+        if (c == '/' || c == '>' || Character.isWhitespace(c)) {
           // ignore
         }
         else if (c == '"') {
@@ -172,6 +172,8 @@ public class Html {
         if (c == quote) {
           startOfValue = currentIndex+1; // exclude the quote
           state = VALUE;
+        } else if (c == '\r' || c == '\n') {
+          break loop; // something terrible has happened at the palace!
         }
         break;
         

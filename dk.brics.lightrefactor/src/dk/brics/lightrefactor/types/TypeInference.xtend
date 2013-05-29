@@ -117,17 +117,16 @@ class TypeInference {
           val p1 = visitExp(exp.trueExpression, voidctx)
           val p2 = visitExp(exp.falseExpression, voidctx)
           if (!voidctx) {
-            unify(exp.trueExpression.typ, exp.falseExpression.typ)
+            unify(exp.typ, exp.trueExpression.typ, exp.falseExpression.typ)
           }
           return p1 && p2
         }
       ElementGet: {
           visitExp(exp.target, NOT_VOID)
           visitExp(exp.element, NOT_VOID)
-          if (exp.element instanceof StringLiteral) { // TODO: ignore strings that look like numbers
+          if (exp.element instanceof StringLiteral) {
             unify(exp.target.typ.getPrty((exp.element as StringLiteral).value), exp.typ)
           }
-          unify(exp.element.typ.getPrty("@prty-name-of"), exp.target.typ)
           return NOT_PRIMITIVE
         }
       EmptyExpression:
@@ -196,6 +195,12 @@ class TypeInference {
         }
         return p1 && p2
       }
+      InfixExpression case exp.type == Token::COMMA: {
+        visitExp(exp.left, VOID)
+        val p = visitExp(exp.right, voidctx)
+        unify(exp.typ, exp.right.typ)
+        return p
+      }
       InfixExpression: { // all other binary operators (note: must come after Assignment and PropertyGet)
         visitExp(exp.left, VOID)
         visitExp(exp.right, VOID)
@@ -206,13 +211,10 @@ class TypeInference {
       GeneratorExpression:
         throw new RuntimeException("JavaScript 1.7+ feature not supported: generator expression")
       FunctionNode: {
-        visitStmt(exp.body)
-        val thisNode = new TypeNode
-        unify(exp.typ.getPrty("prototype"), thisNode)
-        unify(exp.getVar("@this"), thisNode)
         if (!exp.name.equals("")) {
           unify(exp.getVar(exp.name), exp.typ)
         }
+        visitFunction(exp)
         return NOT_PRIMITIVE
       }
       KeywordLiteral case exp.type == Token::THIS: {
@@ -230,7 +232,7 @@ class TypeInference {
         if (exp.string == "undefined") {
           return PRIMITIVE
         } else {
-          val scope = exp.definingScope
+          val scope = if (exp.string == "arguments") exp.enclosingFunction else exp.definingScope
           unify(scope.getVar(exp.string), exp.typ)
           return NOT_PRIMITIVE
         }
@@ -275,8 +277,11 @@ class TypeInference {
         }
         return NOT_PRIMITIVE
       }
-      ParenthesizedExpression:
-        return visitExp(exp.expression, voidctx)
+      ParenthesizedExpression: {
+        val p = visitExp(exp.expression, voidctx)
+        unify(exp.typ, exp.expression.typ)
+        return p
+      }
       RegExpLiteral:
         return NOT_PRIMITIVE // ??
       StringLiteral:
@@ -327,7 +332,6 @@ class TypeInference {
         }
         visitExp(stmt.iteratedObject, NOT_VOID)
         visitStmt(stmt.body)
-        unify(stmt.iteratorNode.typ.getPrty("@prty-name-of"), stmt.iteratedObject.typ)
       }
       ForLoop: {
         if (stmt.initializer != null) {
@@ -352,10 +356,7 @@ class TypeInference {
       FunctionNode: {
         val scope = stmt.enclosingScope
         unify(scope.getVar(stmt.name), stmt.typ)
-        val thisNode = new TypeNode
-        unify(stmt.typ.getPrty("prototype"), thisNode)
-        unify(stmt.getVar("@this"), thisNode)
-        visitStmt(stmt.body)
+        visitFunction(stmt)
       }
       SwitchStatement: {
         val prim = visitExp(stmt.expression, NOT_VOID)
@@ -421,6 +422,18 @@ class TypeInference {
     }
   }
   
+  private def visitFunction(FunctionNode fun) {
+    val thisNode = new TypeNode
+    unify(fun.typ.getPrty("prototype"), thisNode)
+    unify(fun.getVar("@this"), thisNode)
+    for (i : 0..<fun.paramCount) {
+      val parm = fun.params.get(i)
+      unify(fun.getVar(parm.string), parm.typ)
+    }
+    visitStmt(fun.body)
+    
+  }
+  
   private def visitAST(AstRoot root) {
     for (stmt : root.statements) {
       visitStmt(stmt)
@@ -428,14 +441,14 @@ class TypeInference {
   }
   
   private def finish() {
-    // unify window with global object [TODO: externalize native model]
+    // unify window with global object
     unifier.unifyPrty(global, "window", global)
     
     unifier.complete()
     var i=0
     while (i < potentialMethods.size) {
-      val x = potentialMethods.get(i)
-      val y = potentialMethods.get(i+1)
+      val x = potentialMethods.get(i).rep()
+      val y = potentialMethods.get(i+1).rep()
       if (!x.namespace && !y.namespace) {
         unifier.unifyLater(x,y)
       }
