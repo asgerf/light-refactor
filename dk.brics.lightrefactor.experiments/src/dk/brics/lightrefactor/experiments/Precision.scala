@@ -42,7 +42,7 @@ object Precision {
   /** Only consider name refs to properties, 
    *  and don't consider "prototype" properties because nobody ever tries to rename that. */ 
   def includeRef(ref:AstNode) =
-    !NameRef.isVar(ref) && NameRef.name(ref) != "prototype" && !ref.isInstanceOf[StringLiteral]
+    NameRef.isPrty(ref) && NameRef.name(ref) != "prototype" //&& !ref.isInstanceOf[StringLiteral]
   
   def analyze(asts:Asts, pred:AstNode => Boolean) = {
     // collect all property name tokens
@@ -75,10 +75,36 @@ object Precision {
     Stats(nameStats)
   }
   
+  trait Input {
+    val libs : Map[String,File]
+    val asts : Asts
+  }
+  
+  def getInput(file:File) = {
+    if (file.isFile) {
+      val loader = new Loader
+      loader.addFile(file)
+      new Input {
+        val libs = Map.empty[String,File]
+        val asts = loader.getAsts
+      }
+    } else {
+      val loader = new Loader
+      loader.addFile(new File(file, "index.html"))
+      new Input {
+        val libs = EvalUtil.libraries(file)
+        val asts = loader.getAsts
+      }
+    }
+  }
   
   def main(args:Array[String]) {
-    Console.printf("%-30s %6s %s\n", "#benchmark", "effect", "[isolated delta]")
-    val dirs = EvalUtil.benchmarkDirs(includeFake=false)
+//    Console.printf("%-30s %6s %s\n", "#benchmark", "effect", "[isolated delta]")
+    val dirs =
+      if (args.length == 0)
+        EvalUtil.benchmarkDirs(includeFake=false)
+      else
+        List(new File(args(0)))
     
     val libStats = new mutable.HashMap[String, mutable.ListBuffer[(Stats,Stats)]]
     
@@ -89,11 +115,9 @@ object Precision {
     val totalNameStats = new mutable.ListBuffer[(String,NameStats)]
     
     for (dir <- dirs) {
-      val libs = EvalUtil.libraries(dir)
-      val loader = new Loader
-      loader.addFile(new File(dir, "index.html"))
-      
-      val asts = loader.getAsts
+      val input = getInput(dir)
+      val libs = input.libs
+      val asts = input.asts
       
       def isFileInLib(x:File) : Boolean = {
         libs.values.exists(lib => x.getCanonicalPath.startsWith(lib.getCanonicalPath))
@@ -168,7 +192,7 @@ object Precision {
     outfile.getParentFile.mkdirs()
     val writer = new FileWriter(outfile)
     try {
-      for ((benchmark,stat) <- totalNameStats) {
+      for ((benchmark,stat) <- totalNameStats.toList.sortBy(q => q._1 + " " + q._2.name)) {
         writer.write("%s %s %d %d\n".format(benchmark, stat.name, stat.searchReplaceQuestions, stat.renameQuestions))
       }
     } finally {
