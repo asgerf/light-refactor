@@ -447,8 +447,8 @@ class TypeInference {
     unifier.complete()
     var i=0
     while (i < potentialMethods.size) {
-      val x = potentialMethods.get(i)
-      val y = potentialMethods.get(i+1)
+      val x = potentialMethods.get(i).rep()
+      val y = potentialMethods.get(i+1).rep()
       if (!x.namespace && !y.namespace) {
         unifier.unifyLater(x,y)
       }
