@@ -79,7 +79,7 @@ object Equivalence {
   def nonSubsetItems[T](small:Map[T,T], large:Map[T,T]) = {
     val examples = new mutable.ListBuffer[(T,T)]
     for ((k,v) <- small) {
-      if (large(v) != large(k)) {
+      if (large.get(v) != large.get(k)) {
         examples += ((v,k))
       }
     }

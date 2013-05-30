@@ -50,6 +50,7 @@ public class Html {
     TagNode root = cleaner.clean(htmlCode);
     final List<HtmlJs> result = new ArrayList<HtmlJs>();
     root.traverse(new TagNodeVisitor() {
+      int index=0;
       Attrs computeAttrs(TagNode node) {
         if (node.getRow() == 0)
           return null;
@@ -69,7 +70,7 @@ public class Html {
             int line = node.getRow()-1; // translate to 0-based
             int col = node.getCol(); // no need to translate here
             int offset = offsets.getStartOfLine(line) + col;
-            result.add(new InlineJs(node.getText().toString(), offset, line, col));
+            result.add(new InlineJs(node.getText().toString(), offset, line, col, index++));
           }
         }
         else if (node.getName().equalsIgnoreCase("a") && node.hasAttribute("href") && node.getAttributeByName("href").toLowerCase().trim().startsWith("javascript:")) {
@@ -80,7 +81,7 @@ public class Html {
           int offset = attrs.offset("href") + start;
           int line = offsets.getLine(offset);
           int col = offset - offsets.getStartOfLine(line);
-          result.add(new InlineJs(code, offset, line, col));
+          result.add(new InlineJs(code, offset, line, col, index++));
         }
         // quickly check if we need to compute precise attribute offsets
         if (attrs == null) {
@@ -100,7 +101,7 @@ public class Html {
               int offset = attr.offset;
               int line = offsets.getLine(offset);
               int col = offset - offsets.getStartOfLine(line);
-              result.add(new InlineJs(code, offset, line, col));
+              result.add(new InlineJs(code, offset, line, col, index++));
             }
           }
         }
