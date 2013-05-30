@@ -1,19 +1,18 @@
 package dk.brics.lightrefactor.experiments
 import java.io.File
-import scala.collection.mutable
 import java.io.FileWriter
-import dk.brics.lightrefactor.Asts
-import dk.brics.lightrefactor.NameRef
-import org.mozilla.javascript.ast.AstNode
-import org.mozilla.javascript.ast.StringLiteral
-import org.mozilla.javascript.ast.NodeVisitor
-import dk.brics.lightrefactor.VisitAll
-import dk.brics.lightrefactor.Renaming
-import dk.brics.lightrefactor.Loader
+
 import scala.collection.JavaConversions._
-import dk.brics.lightrefactor.util.IO
+import scala.collection.mutable
+
+import org.mozilla.javascript.ast.AstNode
+import org.mozilla.javascript.ast.NodeVisitor
 import org.mozilla.javascript.ast.ScriptNode
-import org.mozilla.javascript.ast.FunctionNode
+
+import dk.brics.lightrefactor.Asts
+import dk.brics.lightrefactor.Loader
+import dk.brics.lightrefactor.NameRef
+import dk.brics.lightrefactor.Renaming
 
 
 /**
@@ -54,14 +53,18 @@ object Precision {
   
   def analyze(asts:Asts, pred:AstNode => Boolean) = analyzeFragmented(asts, pred, Set.empty)
       
-  def analyzeFragmented(asts:Asts, pred:AstNode => Boolean, killed:Set[FunctionNode]) = {
+  def analyzeFragmented(asts:Asts, pred:AstNode => Boolean, killed:Set[ScriptNode]) = {
     // collect all property name tokens
     val nameRefs = new mutable.ListBuffer[AstNode]
-    asts.visitAll(new VisitAll {
-      override def handle(node:AstNode) {
+    asts.visit(new NodeVisitor {
+      override def visit(node:AstNode) = {
         if (NameRef.isPrty(node) && includeRef(node) && pred(node)) {
           nameRefs += node
         }
+        if (killed.contains(node))
+          false
+        else
+          true
       }
     });
     
@@ -205,37 +208,38 @@ object Precision {
       }
     }
     
-    Console.println("--------------- LIBRARIES")
-    
-    // Compute averaged values for each lib (may vary due to versioning or different application code)
-    for (libkey <- libStats.keys.toList.sorted) {
-      var sumDelta = 0.0
-      var sumWholeEffort = 0.0
-      for ((whole,isolated) <- libStats(libkey)) {
-        val delta = isolated.effect - whole.effect
-        sumDelta += delta
-        sumWholeEffort += whole.effect
-      }
-      val numSamples = libStats(libkey).size
-      val avgDelta = sumDelta / numSamples
-      val avgEffort = sumWholeEffort / numSamples
-      val deltaStr = if (avgDelta == 0) "" else "[%6.2f]".format(avgDelta)
-      Console.printf("%-30s %6.2f %s\n", libkey, avgEffort, deltaStr)
-    }
-    
-    // Dump per-name stats
-    val outfile = new File("output/namestats.txt")
-    outfile.getParentFile.mkdirs()
-    val writer = new FileWriter(outfile)
-    try {
+//    Console.println("--------------- LIBRARIES")
+//    
+//    // Compute averaged values for each lib (may vary due to versioning or different application code)
+//    for (libkey <- libStats.keys.toList.sorted) {
+//      var sumDelta = 0.0
+//      var sumWholeEffort = 0.0
+//      for ((whole,isolated) <- libStats(libkey)) {
+//        val delta = isolated.effect - whole.effect
+//        sumDelta += delta
+//        sumWholeEffort += whole.effect
+//      }
+//      val numSamples = libStats(libkey).size
+//      val avgDelta = sumDelta / numSamples
+//      val avgEffort = sumWholeEffort / numSamples
+//      val deltaStr = if (avgDelta == 0) "" else "[%6.2f]".format(avgDelta)
+//      Console.printf("%-30s %6.2f %s\n", libkey, avgEffort, deltaStr)
+//    }
+//    
+//    // Dump per-name stats
+//    val outfile = new File("output/namestats.txt")
+//    outfile.getParentFile.mkdirs()
+//    val writer = new FileWriter(outfile)
+//    try {
       for ((benchmark,stat) <- totalNameStats.toList.sortBy(q => q._1 + " " + q._2.name)) {
-        writer.write("%s %s %d %d\n".format(benchmark, stat.name, stat.searchReplaceQuestions, stat.renameQuestions))
+//        writer.write("%s %s %d %d\n".format(benchmark, stat.name, stat.searchReplaceQuestions, stat.renameQuestions))
+        Console.print("%s %s %d %d\n".format(benchmark, stat.name, stat.searchReplaceQuestions, stat.renameQuestions))
       }
-    } finally {
-      writer.close()
-    }
-    Console.println("---------------")
-    Console.println("Per-name stats written to " + outfile.getPath)
+//    } finally {
+//      writer.close()
+//    }
+//    Console.println("---------------")
+//    Console.println("Per-name stats written to " + outfile.getPath)
     
   }
 }

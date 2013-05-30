@@ -13,6 +13,7 @@ import org.mozilla.javascript.ast.AstNode
 import org.mozilla.javascript.ast.Label
 import org.mozilla.javascript.ast.LabeledStatement
 import org.mozilla.javascript.ast.Name
+import org.mozilla.javascript.ast.ScriptNode
 
 import static extension dk.brics.lightrefactor.NameRef.*
 import static extension dk.brics.lightrefactor.util.MapExtensions.*
@@ -20,7 +21,7 @@ import static extension dk.brics.lightrefactor.util.MapExtensions.*
 class Renaming {
   val Asts asts
   extension var Typing types
-  var Set<AstNode> ignored = new HashSet<AstNode>
+  var Set<ScriptNode> ignored = new HashSet<ScriptNode>
   
   new (Asts asts) {
     this.asts = asts
@@ -30,7 +31,7 @@ class Renaming {
     this.types = types
   }
   
-  def void ignoreNodes(Iterable<? extends AstNode> nodes) {
+  def void ignoreNodes(Iterable<? extends ScriptNode> nodes) {
     ignored.addAll(nodes)
   }
   

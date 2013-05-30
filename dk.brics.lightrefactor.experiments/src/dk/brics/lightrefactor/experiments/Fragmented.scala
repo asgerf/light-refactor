@@ -114,17 +114,21 @@ object Fragmented {
     }
   }
   
-  def getFragmentedCode(code:String, killed:Set[FunctionNode]) = {
+  def getFragmentedCode(code:String, killed:Set[ScriptNode]) = {
     val sb = new StringBuilder
     var offset = 0
     for (node <- killed.toList.sortBy(q => q.getAbsolutePosition)) {
-      val pos = node.getBody.getAbsolutePosition
+      val body = node match {
+        case node:FunctionNode => node.getBody
+        case node:AstRoot => node
+      } 
+      val pos = body.getAbsolutePosition
       if (pos >= offset) {
         sb.append(code.substring(offset, pos))
         sb.append("{ /* removed! */ ")
-        replaceWithWhitespace(code.substring(pos, pos + node.getBody.getLength), sb)
+        replaceWithWhitespace(code.substring(pos, pos + body.getLength), sb)
         sb.append("}")
-        offset = pos + node.getBody.getLength        
+        offset = pos + body.getLength        
       }
     }
     val str = code.substring(offset)
@@ -132,7 +136,7 @@ object Fragmented {
     sb.toString
   }
   
-  def printFragmentedSource(dst:File, asts:Asts, killed:Set[FunctionNode]) {
+  def printFragmentedSource(dst:File, asts:Asts, killed:Set[ScriptNode]) {
     val files = (for (ast <- asts) yield asts.source(ast).getFile).toSet
     for (file <- files) {
       if (file.getName.endsWith(".html")) {
@@ -162,6 +166,7 @@ object Fragmented {
   def main(args:Array[String]) {
     val numTrials = 10
     val deletePercent = 0.50
+    val fragInputDir = new File("fragmentation")
     
     val outputDir = new File("output")
     
@@ -193,9 +198,37 @@ object Fragmented {
       val randomSeed = dir.getName.hashCode() //+ 131 * src.toString.hashCode()
       val rand = new Random(randomSeed)
       for (trialNr <- 0 until numTrials) {
-        var killedFragments = Set.empty[FunctionNode]
-        for (src <- sources) {
-          killedFragments ++= fragmenters(src).makeKillSet(1.0 - deletePercent, rand)
+        var killedFragments = Set.empty[ScriptNode]
+        if (fragInputDir != null) {
+          val keys = Source.fromFile(new File(fragInputDir, dir.getName + "-" + trialNr + "-key.txt")).getLines.toSet
+          for (ast <- asts) {
+            ast.visit(new NodeVisitor {
+              var counter = 1
+              def visit(node:AstNode) = {
+                node match {
+                  case node:FunctionNode =>
+                    counter += 1 // yes, the first function has ID 2, it's a funny numbering scheme
+                    val key = asts.source(ast).toString + "/" + counter
+                    if (keys.contains(key)) {
+                      killedFragments += node
+                      false // killed subfunctions do not have a number, ensure consistent counter
+                    } else {
+                      true
+                    }
+                  case _ => true
+                }
+              }
+            })
+          }
+        } else {
+          for (src <- sources) {
+            killedFragments ++= fragmenters(src).makeKillSet(1.0 - deletePercent, rand)
+          }
+        }
+        
+        // also exclude library code from scrutiny
+        for (ast <- asts if isFileInLib(asts.source(ast).getFile)) {
+          killedFragments += ast
         }
         
         // print fragmented AST to file (for manual inspection)
@@ -204,13 +237,41 @@ object Fragmented {
         printFragmentedSource(outdir, asts, killedFragments)
         
         // analyze as whole and as fragmented and compare 
-        def nodeSurvived(node:AstNode) = node.getEnclosingFunction == null || !killedFragments(node.getEnclosingFunction)
+        def nodeSurvived(node:AstNode) : Boolean = {
+          var fun = node.getParent()
+          while (fun != null) {
+            if (killedFragments.contains(fun))
+              return false
+            fun = fun.getParent()
+          }
+          true
+        }
         val completeStats = Precision.analyze(asts, nodeSurvived)
         val fragmentedStats = Precision.analyzeFragmented(asts, nodeSurvived, killedFragments)
         
+        var numSuspicious = 0
+        val suspiciousFile = new File(outdir, "suspicious.txt")
+        IO.writeFile(suspiciousFile) { case writer =>
+          for (nstat <- fragmentedStats.nameStats) {
+            val suspicious = Equivalence.nonSubsetItems(nstat.equiv, completeStats.name2stats(nstat.name).equiv)
+            numSuspicious += suspicious.size
+            for ((x,y) <- suspicious) {
+              writer.write("\"%s\" at %s:%d and %s:%d\n".format(
+                  nstat.name,
+                  asts.source(x),
+                  1+asts.absoluteLineNo(x),
+                  asts.source(y),
+                  1+asts.absoluteLineNo(y)
+                  ))
+            }
+          }
+        }
+        
+        val suspiciousStr = if (numSuspicious==0) "" else "[potential failure: " + suspiciousFile + "]"
+        
         val delta = fragmentedStats.effect - completeStats.effect
         val deltaStr = if (delta == 0) "" else "[%5.2f pp]".format(delta)
-        Console.printf("%-20s %5d / %5d (%3.1f%%) vs %5d / %5d (%3.1f%%) %s\n", 
+        Console.printf("%-20s %5d / %5d (%5.1f%%) vs %5d / %5d (%5.1f%%) %s %s\n", 
             dir.getName + "-" + trialNr, 
             fragmentedStats.renameQuestions,
             fragmentedStats.searchReplaceQuestions,
@@ -218,7 +279,8 @@ object Fragmented {
             completeStats.renameQuestions,
             completeStats.searchReplaceQuestions,
             completeStats.effect,
-            deltaStr)
+            deltaStr,
+            suspiciousStr)
       }
     }
   }
