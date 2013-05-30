@@ -5,7 +5,9 @@ import dk.brics.lightrefactor.types.TypeNode
 import dk.brics.lightrefactor.types.Typing
 import java.util.ArrayList
 import java.util.HashMap
+import java.util.HashSet
 import java.util.List
+import java.util.Set
 import org.mozilla.javascript.Function
 import org.mozilla.javascript.ast.AstNode
 import org.mozilla.javascript.ast.Label
@@ -18,6 +20,7 @@ import static extension dk.brics.lightrefactor.util.MapExtensions.*
 class Renaming {
   val Asts asts
   extension var Typing types
+  var Set<AstNode> ignored = new HashSet<AstNode>
   
   new (Asts asts) {
     this.asts = asts
@@ -25,6 +28,10 @@ class Renaming {
   new (Asts asts, Typing types) {
     this.asts = asts
     this.types = types
+  }
+  
+  def void ignoreNodes(Iterable<? extends AstNode> nodes) {
+    ignored.addAll(nodes)
   }
   
   def List<ArrayList<AstNode>> renameNode(AstNode targetNode) {
@@ -47,7 +54,9 @@ class Renaming {
   
   private def void computeTypes() {
     if (types == null) {
-      types = new TypeInference(asts).inferTypes()
+      val inf = new TypeInference(asts)
+      inf.ignoreNodes(ignored)
+      types = inf.inferTypes()
     }
   }
   

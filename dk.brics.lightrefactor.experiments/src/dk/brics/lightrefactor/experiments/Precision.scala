@@ -12,6 +12,8 @@ import dk.brics.lightrefactor.Renaming
 import dk.brics.lightrefactor.Loader
 import scala.collection.JavaConversions._
 import dk.brics.lightrefactor.util.IO
+import org.mozilla.javascript.ast.ScriptNode
+import org.mozilla.javascript.ast.FunctionNode
 
 
 /**
@@ -50,7 +52,9 @@ object Precision {
   def includeRef(ref:AstNode) =
     NameRef.isPrty(ref) && NameRef.name(ref) != "prototype" //&& !ref.isInstanceOf[StringLiteral]
   
-  def analyze(asts:Asts, pred:AstNode => Boolean) = {
+  def analyze(asts:Asts, pred:AstNode => Boolean) = analyzeFragmented(asts, pred, Set.empty)
+      
+  def analyzeFragmented(asts:Asts, pred:AstNode => Boolean, killed:Set[FunctionNode]) = {
     // collect all property name tokens
     val nameRefs = new mutable.ListBuffer[AstNode]
     asts.visitAll(new VisitAll {
@@ -69,6 +73,7 @@ object Precision {
     }
     
     val renaming = new Renaming(asts)
+    renaming.ignoreNodes(killed)
     val nameStats = (for (name <- count.keys if count(name) > 1) yield {
       val questions = renaming.renameProperty(name).
           map(_.filter(q => includeRef(q) && pred(q)).toList). // filter out ignored tokens

@@ -1,7 +1,9 @@
 package dk.brics.lightrefactor.types
 
 import java.util.ArrayList
+import java.util.Collections
 import java.util.HashMap
+import java.util.Set
 import org.mozilla.javascript.Token
 import org.mozilla.javascript.ast.ArrayComprehension
 import org.mozilla.javascript.ast.ArrayLiteral
@@ -49,15 +51,19 @@ import static extension dk.brics.lightrefactor.NameRef.*
 
 class TypeInference {
   
+  private val Iterable<AstRoot> asts
+  
   new (AstRoot ast) {
-    visitAST(ast)
-    finish()
+    asts = Collections::singleton(ast)
   }
   new (Iterable<AstRoot> asts) {
-    for (ast : asts) {
-      visitAST(ast)
-    }
-    finish()
+    this.asts = asts
+  }
+  
+  private var Set<AstNode> ignored = Collections::emptySet
+  
+  def ignoreNodes(Set<AstNode> ignored) {
+    this.ignored = ignored
   }
   
   private val unifier = new TypeUnifier
@@ -423,6 +429,8 @@ class TypeInference {
   }
   
   private def visitFunction(FunctionNode fun) {
+    if (ignored.contains(fun))
+      return
     val thisNode = new TypeNode
     unify(fun.typ.getPrty("prototype"), thisNode)
     unify(fun.getVar("@this"), thisNode)
@@ -460,6 +468,10 @@ class TypeInference {
   
   
   def Typing inferTypes() {
+    for (ast : asts) {
+      visitAST(ast)
+    }
+    finish()
     typing
   }
   
