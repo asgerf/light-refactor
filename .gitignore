@@ -1,3 +1,5 @@
 *.class
 *._trace
 xtend-gen
+.metadata
+.cache

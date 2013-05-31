@@ -46,8 +46,23 @@ object MeasureEffect {
     }
   }
   
+  def printHelp() {
+    Console.println("Usage: effect [DIR]")
+    Console.println("Measures number of questions vs search-replace")
+    Console.println("Also compares against benchmarks in isolation (i.e. without libs)")
+    Console.println()
+    Console.println("Output format:")
+    Console.println("    benchmark-name effect [isolated delta]")
+    Console.println("")
+    Console.println("Passing the optional DIR argument focuses on only one benchmark")
+  }
+  
   def main(args:Array[String]) {
 //    Console.printf("%-30s %6s %s\n", "#benchmark", "effect", "[isolated delta]")
+    if (args.contains("-h")) {
+      printHelp();
+      System.exit(0)
+    }
     val dirs =
       if (args.length == 0)
         benchmarkDirs(includeFake=false)
@@ -88,8 +103,8 @@ object MeasureEffect {
         }
         var suspiciousStr = ""
         if (suspiciousPairs.size > 0) {
-          val outfile = "output/suspicious-" + name + ".txt"
-          val writer = new FileWriter(new File(outfile))
+          val outfile = new File(outputDir, "isolated-" + name + ".txt")
+          val writer = new FileWriter(outfile)
           try {
             for ((x,y) <- suspiciousPairs) {
               writer.write("\"" + NameRef.name(x) + "\" at " + asts.source(x) + ":" + (1+asts.absoluteLineNo(x)) + 
@@ -99,7 +114,7 @@ object MeasureEffect {
           } finally {
             writer.close()
           }
-          suspiciousStr = "[potential failure: see " + outfile + "]"
+          suspiciousStr = "[potential failure: see " + pathTo(outfile) + "]"
         }
         
         Console.printf("%-30s %6.2f %s %s\n", name, whole.effect, deltaStr, suspiciousStr)
@@ -161,7 +176,7 @@ object MeasureEffect {
     }
     
     // Dump per-name stats
-    val outfile = new File("output/namestats.txt")
+    val outfile = new File(outputDir, "namestats.txt")
     outfile.getParentFile.mkdirs()
     val writer = new FileWriter(outfile)
     try {
@@ -172,7 +187,7 @@ object MeasureEffect {
       writer.close()
     }
     Console.println("---------------")
-    Console.println("Per-name stats written to " + outfile.getPath)
+    Console.println("Per-name stats written to " + pathTo(outfile))
     
   }
 }

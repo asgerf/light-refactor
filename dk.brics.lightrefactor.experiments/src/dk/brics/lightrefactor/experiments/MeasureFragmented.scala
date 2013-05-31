@@ -163,21 +163,39 @@ object MeasureFragmented {
     }
   }
   
+  import EvalUtil._
+  
+  def printHelp() {
+    Console.println("Usage: fragmented [-h] [-random]")
+    Console.println("Analyses each benchmark compared with 10 fragmented versions")
+    Console.println()
+    Console.println("The output format is:")
+    Console.println("    benchmark-name fragmented vs whole [delta]")
+    Console.println("Where FRAGMENTED and WHOLE consist of:")
+    Console.println("    rename-questions / search-replace-questions (effect)")
+    Console.println()
+    Console.println("Options:")
+    Console.println("-h:      Show this help")
+    Console.println("-random: Generate random fragmented versions. ")
+    Console.println("         Otherwise use the ones in the fragmentation folder.")
+  }
+  
   def main(args:Array[String]) {
     var numTrials = 10
     var deletePercent = 0.50
-    var fragInputDir = new File("fragmentation") // fragmentation used in original experiment
+    var fragInputDir = new File(workdir, "fragmentation") // fragmentation used in original experiment
     
     for (arg <- args) {
       if (arg == "-random") {
         fragInputDir = null
+      } else if (arg == "-h") {
+        printHelp();
+        System.exit(0);
       } else {
         Console.err.println("Unrecognized argument: " + arg)
         System.exit(1)
       }
     }
-    
-    val outputDir = new File("output")
     
     val dirs = EvalUtil.benchmarkDirs(includeLibs=true)
     
@@ -274,11 +292,11 @@ object MeasureFragmented {
           }
         }
         
-        val suspiciousStr = if (numSuspicious==0) "" else "[potential failure: " + suspiciousFile + "]"
+        val suspiciousStr = if (numSuspicious==0) "" else "[potential failure: " + pathTo(suspiciousFile) + "]"
         
         val delta = fragmentedStats.effect - completeStats.effect
-        val deltaStr = if (delta == 0) "" else "[%5.2f pp]".format(delta)
-        Console.printf("%-20s %5d / %5d (%5.1f%%) vs %5d / %5d (%5.1f%%) %s %s\n", 
+        val deltaStr = if (delta == 0) "" else "[%5.2f pp] ".format(delta)
+        Console.printf("%-20s %5d / %5d (%5.1f%%) vs %5d / %5d (%5.1f%%) %s%s\n", 
             dir.getName + "-" + trialNr, 
             fragmentedStats.renameQuestions,
             fragmentedStats.searchReplaceQuestions,

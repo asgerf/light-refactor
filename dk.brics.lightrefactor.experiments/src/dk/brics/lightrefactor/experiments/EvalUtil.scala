@@ -11,7 +11,17 @@ import org.mozilla.javascript.ast.NodeVisitor
 import scala.collection.JavaConversions._
 
 object EvalUtil {
-  val benchmarksDir = new File("benchmarks")
+  val workdir = {
+    if (System.getProperty("workdir") != null) {
+      new File(System.getProperty("workdir"))
+    } else {
+      new File(".")
+    }
+  }
+  val benchmarksDir = new File(workdir,"benchmarks")
+  val outputDir = new File(workdir,"output")
+  
+  def pathTo(file:File) = getRelative(workdir, file)
   
   def benchmarkDirs(includeFake:Boolean=false, includeLibs:Boolean=false) : mutable.ListBuffer[File] = {
     // collect all benchmark directories into a list

@@ -14,20 +14,26 @@ import dk.brics.lightrefactor.VisitAll
 import dk.brics.scalautil.mut
 
 object CompareWithDynamic {
-  def getRelative(base:File, child:File) : String = {
-    val baseStr = base.getAbsolutePath
-    val childStr = child.getAbsolutePath
-    if (!childStr.startsWith(baseStr))
-      throw new RuntimeException("Not contained in base directory")
-    else
-      childStr.substring(baseStr.length+1)
-  }
-  def printUsage() {
-    Console.println("CompareWithDynamic [-showdead] DIR")
-    Console.println("  DIR must contain an index.html and dyn-alias.txt file")
-    Console.println("  -showdead includes tokens not covered by dynamic execution")
+  import EvalUtil._
+  def printHelp() {
+    Console.println("Usage: soundness [-showdead] DIR")
+    Console.println("Compares static analysis against results from dynamic executions")
+    Console.println()
+    Console.println("Output format:")
+    Console.println("    property-name at location1 and location2")
+    Console.println("The two tokens were related statically but not dynamically.")
+    Console.println("Could represent a failure for the renaming tool.")
+    Console.println()
+    Console.println("Options:")
+    Console.println("DIR should be an application folder.")
+    Console.println("    It must contain an index.html and dyn-alias.txt file.")
+    Console.println("-showdead includes tokens not covered by dynamic execution.")
   }
   def main(args:Array[String]) {
+    if (args.contains("-h")) {
+      printHelp();
+      return;
+    }
     // Parse arguments
     var file : File = null
     var showdead = false
@@ -44,7 +50,7 @@ object CompareWithDynamic {
       }
     }
     if (file == null) {
-      printUsage();
+      printHelp();
       return;
     }
     var inputWasDir = false
@@ -138,6 +144,6 @@ object CompareWithDynamic {
       }
     })
     val cov = EvalUtil.percent(numCoveredTokens, numTokens)
-    Console.printf("Property name token coverage: %4.2f%%", cov);
+    Console.printf("Property name token coverage: %4.2f%%\n", cov);
   }
 }

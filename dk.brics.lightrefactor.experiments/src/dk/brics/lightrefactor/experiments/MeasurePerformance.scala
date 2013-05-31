@@ -27,8 +27,22 @@ object MeasurePerformance {
     name
   }
   
+  def printHelp() {
+    Console.println("Usage: performance [-h]")
+    Console.println("Measures the number of seconds it takes to rename the most frequently")
+    Console.println("occuring property name for each application. Timings are averaged over ten runs.")
+    Console.println("Analysis includes library code.")
+    Console.println()
+    Console.println("Output format:")
+    Console.println("    benchmark-name seconds")
+  }
+  
   import EvalUtil._
   def main(args:Array[String]) {
+    if (args.contains("-h")) {
+      printHelp()
+      System.exit(0)
+    }
     val dirs = benchmarkDirs()
     for (dir <- dirs) {
       // Parse the input
