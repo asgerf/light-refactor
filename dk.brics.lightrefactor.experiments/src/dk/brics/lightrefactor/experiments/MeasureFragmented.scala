@@ -102,7 +102,7 @@ class RandomizedFragmentor(ast:AstRoot) {
   
 }
 
-object Fragmented {
+object MeasureFragmented {
   
   def replaceWithWhitespace(code:String, sb:StringBuilder) {
     for (ch <- code) {
@@ -246,8 +246,8 @@ object Fragmented {
           }
           true
         }
-        val completeStats = Precision.analyze(asts, nodeSurvived)
-        val fragmentedStats = Precision.analyzeFragmented(asts, nodeSurvived, killedFragments)
+        val completeStats = EvalUtil.analyze(asts, nodeSurvived)
+        val fragmentedStats = EvalUtil.analyzeFragmented(asts, nodeSurvived, killedFragments)
         
         var numSuspicious = 0
         val suspiciousFile = new File(outdir, "suspicious.txt")

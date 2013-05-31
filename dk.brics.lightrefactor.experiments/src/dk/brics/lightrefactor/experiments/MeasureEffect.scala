@@ -17,77 +17,11 @@ import dk.brics.lightrefactor.Renaming
 
 /**
  * Measures the number of questions asked by our tool, compared to search-and-replace.
+ * Also analyzes each benchmark in isolation to measure how well the tool responds to missing
+ * library/client code.
  */
-object Precision {
-  def percent(x:Double, y:Double) = {
-    if (y == 0)
-      0
-    else
-      100 * (x / y)
-  }
-  def reduction(x:Double, y:Double) = {
-    if (x == 0)
-      0
-    else
-      y / x
-  }
-  
-  case class NameStats(name:String, questions:List[List[AstNode]]) {
-    lazy val equiv = Equivalence.fromGroups(questions)
-    lazy val numTokens = questions.map(_.size).sum
-    def searchReplaceQuestions = numTokens - 1
-    def renameQuestions = questions.size - 1
-    def effect = percent(searchReplaceQuestions - renameQuestions, searchReplaceQuestions)
-  }
-  case class Stats(nameStats:List[NameStats]) {
-    lazy val name2stats = nameStats.map(q => (q.name,q)).toMap
-    lazy val searchReplaceQuestions = nameStats.map(_.searchReplaceQuestions).sum
-    lazy val renameQuestions = nameStats.map(_.renameQuestions).sum
-    def effect = percent(searchReplaceQuestions - renameQuestions, searchReplaceQuestions)
-  }
-  
-  /** Only consider name refs to properties, 
-   *  and don't consider "prototype" properties because nobody ever tries to rename that. */ 
-  def includeRef(ref:AstNode) =
-    NameRef.isPrty(ref) && NameRef.name(ref) != "prototype" //&& !ref.isInstanceOf[StringLiteral]
-  
-  def analyze(asts:Asts, pred:AstNode => Boolean) = analyzeFragmented(asts, pred, Set.empty)
-      
-  def analyzeFragmented(asts:Asts, pred:AstNode => Boolean, killed:Set[ScriptNode]) = {
-    // collect all property name tokens
-    val nameRefs = new mutable.ListBuffer[AstNode]
-    asts.visit(new NodeVisitor {
-      override def visit(node:AstNode) = {
-        if (NameRef.isPrty(node) && includeRef(node) && pred(node)) {
-          nameRefs += node
-        }
-        if (killed.contains(node))
-          false
-        else
-          true
-      }
-    });
-    
-    val count = new mutable.HashMap[String,Int]
-    
-    // count number of occurrences of each name
-    for (ref <- nameRefs) {
-      count += NameRef.name(ref) -> (1 + count.getOrElse(NameRef.name(ref),0))
-    }
-    
-    val renaming = new Renaming(asts)
-    renaming.ignoreNodes(killed)
-    val nameStats = (for (name <- count.keys if count(name) > 1) yield {
-      val questions = renaming.renameProperty(name).
-          map(_.filter(q => includeRef(q) && pred(q)).toList). // filter out ignored tokens
-          filter(!_.isEmpty).                                  // ignore questions that are now empty
-          sortBy(q => asts.source(q.head) + ":" + q.head.getAbsolutePosition).
-          toList
-      NameStats(name, questions)
-    }).toList
-    
-    Stats(nameStats)
-  }
+object MeasureEffect {
+  import EvalUtil._
   
   trait Input {
     val libs : Map[String,File]
@@ -116,7 +50,7 @@ object Precision {
 //    Console.printf("%-30s %6s %s\n", "#benchmark", "effect", "[isolated delta]")
     val dirs =
       if (args.length == 0)
-        EvalUtil.benchmarkDirs(includeFake=false)
+        benchmarkDirs(includeFake=false)
       else
         List(new File(args(0)))
     
@@ -208,38 +142,37 @@ object Precision {
       }
     }
     
-//    Console.println("--------------- LIBRARIES")
-//    
-//    // Compute averaged values for each lib (may vary due to versioning or different application code)
-//    for (libkey <- libStats.keys.toList.sorted) {
-//      var sumDelta = 0.0
-//      var sumWholeEffort = 0.0
-//      for ((whole,isolated) <- libStats(libkey)) {
-//        val delta = isolated.effect - whole.effect
-//        sumDelta += delta
-//        sumWholeEffort += whole.effect
-//      }
-//      val numSamples = libStats(libkey).size
-//      val avgDelta = sumDelta / numSamples
-//      val avgEffort = sumWholeEffort / numSamples
-//      val deltaStr = if (avgDelta == 0) "" else "[%6.2f]".format(avgDelta)
-//      Console.printf("%-30s %6.2f %s\n", libkey, avgEffort, deltaStr)
-//    }
-//    
-//    // Dump per-name stats
-//    val outfile = new File("output/namestats.txt")
-//    outfile.getParentFile.mkdirs()
-//    val writer = new FileWriter(outfile)
-//    try {
-      for ((benchmark,stat) <- totalNameStats.toList.sortBy(q => q._1 + " " + q._2.name)) {
-//        writer.write("%s %s %d %d\n".format(benchmark, stat.name, stat.searchReplaceQuestions, stat.renameQuestions))
-        Console.print("%s %s %d %d\n".format(benchmark, stat.name, stat.searchReplaceQuestions, stat.renameQuestions))
+    Console.println("--------------- LIBRARIES")
+    
+    // Compute averaged values for each lib (may vary due to versioning or different application code)
+    for (libkey <- libStats.keys.toList.sorted) {
+      var sumDelta = 0.0
+      var sumWholeEffect = 0.0
+      for ((whole,isolated) <- libStats(libkey)) {
+        val delta = isolated.effect - whole.effect
+        sumDelta += delta
+        sumWholeEffect += whole.effect
       }
-//    } finally {
-//      writer.close()
-//    }
-//    Console.println("---------------")
-//    Console.println("Per-name stats written to " + outfile.getPath)
+      val numSamples = libStats(libkey).size
+      val avgDelta = sumDelta / numSamples
+      val avgEffect = sumWholeEffect / numSamples
+      val deltaStr = if (avgDelta == 0) "" else "[%6.2f]".format(avgDelta)
+      Console.printf("%-30s %6.2f %s\n", libkey, avgEffect, deltaStr)
+    }
+    
+    // Dump per-name stats
+    val outfile = new File("output/namestats.txt")
+    outfile.getParentFile.mkdirs()
+    val writer = new FileWriter(outfile)
+    try {
+      for ((benchmark,stat) <- totalNameStats.toList.sortBy(q => q._1 + " " + q._2.name)) {
+        writer.write("%s %s %d %d\n".format(benchmark, stat.name, stat.searchReplaceQuestions, stat.renameQuestions))
+      }
+    } finally {
+      writer.close()
+    }
+    Console.println("---------------")
+    Console.println("Per-name stats written to " + outfile.getPath)
     
   }
 }

@@ -137,7 +137,7 @@ object CompareWithDynamic {
         }
       }
     })
-    val cov = Precision.percent(numCoveredTokens, numTokens)
+    val cov = EvalUtil.percent(numCoveredTokens, numTokens)
     Console.printf("Property name token coverage: %4.2f%%", cov);
   }
 }
