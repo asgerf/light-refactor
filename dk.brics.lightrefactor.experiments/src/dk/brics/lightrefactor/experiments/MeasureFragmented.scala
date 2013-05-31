@@ -164,9 +164,18 @@ object MeasureFragmented {
   }
   
   def main(args:Array[String]) {
-    val numTrials = 10
-    val deletePercent = 0.50
-    val fragInputDir = new File("fragmentation")
+    var numTrials = 10
+    var deletePercent = 0.50
+    var fragInputDir = new File("fragmentation") // fragmentation used in original experiment
+    
+    for (arg <- args) {
+      if (arg == "-random") {
+        fragInputDir = null
+      } else {
+        Console.err.println("Unrecognized argument: " + arg)
+        System.exit(1)
+      }
+    }
     
     val outputDir = new File("output")
     
@@ -184,8 +193,6 @@ object MeasureFragmented {
         }
       }
       val asts = loader.getAsts
-      
-//      val completeStats = Precision.analyze(asts, q => true)
       
       def isFileInLib(x:File) = libs.values.exists(lib => x.getCanonicalPath.startsWith(lib.getCanonicalPath))
       
