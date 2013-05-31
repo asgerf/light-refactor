@@ -17,4 +17,4 @@ SCALAUTIL="$LR/scala-util"
 
 classpath="$MAIN/bin:$MAIN/lib/js.jar:$EXPERIMENTS/bin:$JSHTML/bin:$JSHTML/lib/htmlcleaner-212-mod.jar:$XTEND:$SCALAUTIL/bin"
 
-scala -Dworkdir="$EXPERIMENTS" -cp $classpath $*
+scala -J-Xmx512m -Dworkdir="$EXPERIMENTS" -cp $classpath $*
