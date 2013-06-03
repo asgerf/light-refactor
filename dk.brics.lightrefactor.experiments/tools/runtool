@@ -1,0 +1,20 @@
+# Runs Scala with the proper classpath set up
+
+if [ $# -eq 0 ]
+then
+  echo "Usage: `basename $0` CLASSNAME [ARG..]"
+  echo "Runs a class from the light-refactor project"
+  exit
+fi
+
+BASE=$(dirname $0)
+LR="../.."
+MAIN="$LR/dk.brics.lightrefactor"
+EXPERIMENTS="$LR/dk.brics.lightrefactor.experiments"
+JSHTML="$LR/dk.brics.jshtml"
+XTEND="$MAIN/lib/xtend-lib.jar:$MAIN/lib/xtext-base.jar:$MAIN/lib/guava.jar"
+SCALAUTIL="$LR/scala-util"
+
+classpath="$MAIN/bin:$MAIN/lib/js.jar:$EXPERIMENTS/bin:$JSHTML/bin:$JSHTML/lib/htmlcleaner-212-mod.jar:$XTEND:$SCALAUTIL/bin"
+
+scala -J-Xmx512m -Dworkdir="$EXPERIMENTS" -cp $classpath $*

@@ -1,7 +1,9 @@
 package dk.brics.lightrefactor.types
 
 import java.util.ArrayList
+import java.util.Collections
 import java.util.HashMap
+import java.util.Set
 import org.mozilla.javascript.Token
 import org.mozilla.javascript.ast.ArrayComprehension
 import org.mozilla.javascript.ast.ArrayLiteral
@@ -36,6 +38,7 @@ import org.mozilla.javascript.ast.PropertyGet
 import org.mozilla.javascript.ast.RegExpLiteral
 import org.mozilla.javascript.ast.ReturnStatement
 import org.mozilla.javascript.ast.Scope
+import org.mozilla.javascript.ast.ScriptNode
 import org.mozilla.javascript.ast.StringLiteral
 import org.mozilla.javascript.ast.SwitchStatement
 import org.mozilla.javascript.ast.ThrowStatement
@@ -49,15 +52,19 @@ import static extension dk.brics.lightrefactor.NameRef.*
 
 class TypeInference {
   
+  private val Iterable<AstRoot> asts
+  
   new (AstRoot ast) {
-    visitAST(ast)
-    finish()
+    asts = Collections::singleton(ast)
   }
   new (Iterable<AstRoot> asts) {
-    for (ast : asts) {
-      visitAST(ast)
-    }
-    finish()
+    this.asts = asts
+  }
+  
+  private var Set<ScriptNode> ignored = Collections::emptySet
+  
+  def ignoreNodes(Set<ScriptNode> ignored) {
+    this.ignored = ignored
   }
   
   private val unifier = new TypeUnifier
@@ -430,11 +437,14 @@ class TypeInference {
       val parm = fun.params.get(i)
       unify(fun.getVar(parm.string), parm.typ)
     }
-    visitStmt(fun.body)
-    
+    if (!ignored.contains(fun)) {
+      visitStmt(fun.body)
+    }
   }
   
   private def visitAST(AstRoot root) {
+    if (ignored.contains(root))
+      return;
     for (stmt : root.statements) {
       visitStmt(stmt)
     }
@@ -449,7 +459,8 @@ class TypeInference {
     while (i < potentialMethods.size) {
       val x = potentialMethods.get(i).rep()
       val y = potentialMethods.get(i+1).rep()
-      if (!x.namespace && !y.namespace) {
+      if (!x.namespace) { // note: the line below is more robust, but this variant was used in the original experiments
+//      if (!x.namespace && !y.namespace) {
         unifier.unifyLater(x,y)
       }
       i = i + 2
@@ -460,6 +471,10 @@ class TypeInference {
   
   
   def Typing inferTypes() {
+    for (ast : asts) {
+      visitAST(ast)
+    }
+    finish()
     typing
   }
   

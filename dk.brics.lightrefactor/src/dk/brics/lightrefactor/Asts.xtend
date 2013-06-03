@@ -38,6 +38,7 @@ interface ISource {
   val File file
   val int offset
   val int lineno
+  val int index
   override def toString() { file.getName + "@" + lineno }
 }
 

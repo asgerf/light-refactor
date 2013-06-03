@@ -5,12 +5,15 @@ import dk.brics.lightrefactor.types.TypeNode
 import dk.brics.lightrefactor.types.Typing
 import java.util.ArrayList
 import java.util.HashMap
+import java.util.HashSet
 import java.util.List
+import java.util.Set
 import org.mozilla.javascript.Function
 import org.mozilla.javascript.ast.AstNode
 import org.mozilla.javascript.ast.Label
 import org.mozilla.javascript.ast.LabeledStatement
 import org.mozilla.javascript.ast.Name
+import org.mozilla.javascript.ast.ScriptNode
 
 import static extension dk.brics.lightrefactor.NameRef.*
 import static extension dk.brics.lightrefactor.util.MapExtensions.*
@@ -18,6 +21,7 @@ import static extension dk.brics.lightrefactor.util.MapExtensions.*
 class Renaming {
   val Asts asts
   extension var Typing types
+  var Set<ScriptNode> ignored = new HashSet<ScriptNode>
   
   new (Asts asts) {
     this.asts = asts
@@ -25,6 +29,10 @@ class Renaming {
   new (Asts asts, Typing types) {
     this.asts = asts
     this.types = types
+  }
+  
+  def void ignoreNodes(Iterable<? extends ScriptNode> nodes) {
+    ignored.addAll(nodes)
   }
   
   def List<ArrayList<AstNode>> renameNode(AstNode targetNode) {
@@ -47,7 +55,9 @@ class Renaming {
   
   private def void computeTypes() {
     if (types == null) {
-      types = new TypeInference(asts).inferTypes()
+      val inf = new TypeInference(asts)
+      inf.ignoreNodes(ignored)
+      types = inf.inferTypes()
     }
   }
   
@@ -88,7 +98,9 @@ class Renaming {
       }
       true
     ]
-    return #[names]
+    val list = new ArrayList<ArrayList<AstNode>>
+    list.add(names)
+    return list
   }
   
   private def LabeledStatement getTargetStmt(AstNode labelName) {

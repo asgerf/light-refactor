@@ -8,12 +8,14 @@ public class InlineJs extends HtmlJs {
   private final int offset;
   private final int line;
   private final int column;
+  private final int index;
   
-  public InlineJs(String code, int offset, int line, int column) {
+  public InlineJs(String code, int offset, int line, int column, int index) {
     this.code = code;
     this.offset = offset;
     this.line = line;
     this.column = column;
+    this.index = index;
   }
   
   /** Source code of this fragment */
@@ -45,5 +47,12 @@ public class InlineJs extends HtmlJs {
    */
   public int getColumn() {
     return column;
+  }
+  
+  /**
+   * Index among the inline javascript fragments.
+   */
+  public int getIndex() {
+    return index;
   }
 }

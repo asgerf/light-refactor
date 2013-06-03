@@ -2,9 +2,26 @@ package dk.brics.lightrefactor.experiments
 import java.io.File
 import scala.collection.mutable
 import scala.io.Source
+import dk.brics.lightrefactor.NameRef
+import dk.brics.lightrefactor.Renaming
+import org.mozilla.javascript.ast.AstNode
+import org.mozilla.javascript.ast.ScriptNode
+import dk.brics.lightrefactor.Asts
+import org.mozilla.javascript.ast.NodeVisitor
+import scala.collection.JavaConversions._
 
 object EvalUtil {
-  val benchmarksDir = new File("benchmarks")
+  val workdir = {
+    if (System.getProperty("workdir") != null) {
+      new File(System.getProperty("workdir"))
+    } else {
+      new File(".")
+    }
+  }
+  val benchmarksDir = new File(workdir,"benchmarks")
+  val outputDir = new File(workdir,"output")
+  
+  def pathTo(file:File) = getRelative(workdir, file)
   
   def benchmarkDirs(includeFake:Boolean=false, includeLibs:Boolean=false) : mutable.ListBuffer[File] = {
     // collect all benchmark directories into a list
@@ -61,5 +78,76 @@ object EvalUtil {
     }
     visit(dir)
     result.toList
+  }
+  
+  
+  def percent(x:Double, y:Double) = {
+    if (y == 0)
+      0
+    else
+      100 * (x / y)
+  }
+  def reduction(x:Double, y:Double) = {
+    if (x == 0)
+      0
+    else
+      y / x
+  }
+  
+  case class NameStats(name:String, questions:List[List[AstNode]]) {
+    lazy val equiv = Equivalence.fromGroups(questions)
+    lazy val numTokens = questions.map(_.size).sum
+    def searchReplaceQuestions = numTokens - 1
+    def renameQuestions = questions.size - 1
+    def effect = percent(searchReplaceQuestions - renameQuestions, searchReplaceQuestions)
+  }
+  case class Stats(nameStats:List[NameStats]) {
+    lazy val name2stats = nameStats.map(q => (q.name,q)).toMap
+    lazy val searchReplaceQuestions = nameStats.map(_.searchReplaceQuestions).sum
+    lazy val renameQuestions = nameStats.map(_.renameQuestions).sum
+    def effect = percent(searchReplaceQuestions - renameQuestions, searchReplaceQuestions)
+  }
+  
+  /** Only consider name refs to properties, 
+   *  and don't consider "prototype" properties because nobody ever tries to rename that. */ 
+  def includeRef(ref:AstNode) =
+    NameRef.isPrty(ref) && NameRef.name(ref) != "prototype"
+  
+  def analyze(asts:Asts, pred:AstNode => Boolean) = analyzeFragmented(asts, pred, Set.empty)
+      
+  def analyzeFragmented(asts:Asts, pred:AstNode => Boolean, killed:Set[ScriptNode]) = {
+    // collect all property name tokens
+    val nameRefs = new mutable.ListBuffer[AstNode]
+    asts.visit(new NodeVisitor {
+      override def visit(node:AstNode) = {
+        if (NameRef.isPrty(node) && includeRef(node) && pred(node)) {
+          nameRefs += node
+        }
+        if (killed.contains(node))
+          false
+        else
+          true
+      }
+    });
+    
+    val count = new mutable.HashMap[String,Int]
+    
+    // count number of occurrences of each name
+    for (ref <- nameRefs) {
+      count += NameRef.name(ref) -> (1 + count.getOrElse(NameRef.name(ref),0))
+    }
+    
+    val renaming = new Renaming(asts)
+    renaming.ignoreNodes(killed)
+    val nameStats = (for (name <- count.keys if count(name) > 1) yield {
+      val questions = renaming.renameProperty(name).
+          map(_.filter(q => includeRef(q) && pred(q)).toList). // filter out ignored tokens
+          filter(!_.isEmpty).                                  // ignore questions that are now empty
+          sortBy(q => asts.source(q.head) + ":" + q.head.getAbsolutePosition).
+          toList
+      NameStats(name, questions)
+    }).toList
+    
+    Stats(nameStats)
   }
 }
