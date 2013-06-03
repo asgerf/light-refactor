@@ -98,7 +98,9 @@ class Renaming {
       }
       true
     ]
-    return #[names]
+    val list = new ArrayList<ArrayList<AstNode>>
+    list.add(names)
+    return list
   }
   
   private def LabeledStatement getTargetStmt(AstNode labelName) {

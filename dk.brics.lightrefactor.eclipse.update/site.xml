@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<site>
+   <feature url="features/dk.brics.lightrefactor.eclipse.feature_1.0.1.jar" id="dk.brics.lightrefactor.eclipse.feature" version="1.0.1"/>
+</site>
