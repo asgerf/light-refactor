@@ -150,4 +150,35 @@ object EvalUtil {
     
     Stats(nameStats)
   }
+  
+  
+  
+  val BIG = 1000000
+  
+  case class Range(from:Int, to:Int) { // inclusive, exclusive
+    override def toString = {
+      if (from+1 == to) {
+        "" + from
+      } else if (to == BIG) {
+        from + "+"
+      } else {
+        from + ".." + (to-1)
+      }
+    }
+  } 
+  
+  def parseRange(str:String) = {
+    if (str.contains("..")) {
+      val toks = str.split("\\.\\.")
+      Range(toks(0).toInt, toks(1).toInt+1)
+    }
+    else if (str.endsWith("+")) {
+      val num = str.substring(0, str.length-1)
+      Range(num.toInt, BIG)
+    }
+    else {
+      val z = str.toInt
+      Range(z, z+1)
+    }
+  }
 }
