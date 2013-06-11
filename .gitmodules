@@ -1,0 +1,3 @@
+[submodule "dk.brics.lightrefactor.experiments/plots/cols"]
+	path = dk.brics.lightrefactor.experiments/plots/cols
+	url = git://github.com/asgerf/cols.git

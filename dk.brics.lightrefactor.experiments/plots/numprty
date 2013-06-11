@@ -1,0 +1,34 @@
+#!/usr/bin/env node
+
+program = require('commander')
+var cols = require('./cols/cols')
+
+program
+    .option('-b, --bench <BENCH>', 'If set, show only number of properties for this benchmark')
+    .parse(process.argv)
+
+var data = cols
+    .files(program.args)
+    .columns('bench', null, null, null)
+    .group('bench', {
+        num: function() { return this.bench.length }
+    })
+
+if (program.bench) {
+    data.filter({
+            bench: function(x) { return x === program.bench }
+        })
+        .then(function (data) {
+            if (data.length === 0) {
+                throw new Error("No benchmark named " + program.bench)
+            } else {
+                return data
+            }
+        })
+        .print('num')
+        .printErrors()
+} else {
+    data.print('bench', 'num')
+        .printErrors()
+}
+
