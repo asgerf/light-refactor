@@ -1,5 +1,6 @@
 package dk.brics.lightrefactor.types
 
+import dk.brics.lightrefactor.Asts
 import java.util.ArrayList
 import java.util.Collections
 import java.util.HashMap
@@ -52,12 +53,9 @@ import static extension dk.brics.lightrefactor.NameRef.*
 
 class TypeInference {
   
-  private val Iterable<AstRoot> asts
+  private val Asts asts
   
-  new (AstRoot ast) {
-    asts = Collections::singleton(ast)
-  }
-  new (Iterable<AstRoot> asts) {
+  new (Asts asts) {
     this.asts = asts
   }
   
