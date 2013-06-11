@@ -22,6 +22,11 @@ public class TypeUnifier {
     }
     y.parent = x;
     x.namespace |= y.namespace;
+    if (x.functions == null) {
+      x.functions = y.functions;
+    } else if (y.functions != null) {
+      x.functions.splice(y.functions);
+    }
     Map<String,TypeNode> src;
     Map<String,TypeNode> dst;
     if (x.prty.size() < y.prty.size()) {

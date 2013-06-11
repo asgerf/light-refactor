@@ -109,6 +109,15 @@ class TypeInference {
     potentialMethods.add(receiver)
   }
   
+  private def addFunction(TypeNode t, FunctionNode f) {
+    val node = new LinkNode<FunctionNode>(f)
+    if (t.functions == null) {
+      t.functions = node
+    } else {
+      t.functions.splice(node)
+    }
+  }
+  
   
   def boolean visitExp(AstNode exp, boolean voidctx) {
     switch exp {
@@ -221,6 +230,7 @@ class TypeInference {
         if (!exp.name.equals("")) {
           unify(exp.getVar(exp.name), exp.typ)
         }
+        exp.typ.addFunction(exp)
         visitFunction(exp)
         return NOT_PRIMITIVE
       }
@@ -363,6 +373,7 @@ class TypeInference {
       FunctionNode: {
         val scope = stmt.enclosingScope
         unify(scope.getVar(stmt.name), stmt.typ)
+        stmt.typ.addFunction(stmt)
         visitFunction(stmt)
       }
       SwitchStatement: {
