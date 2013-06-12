@@ -1,5 +1,6 @@
 package dk.brics.lightrefactor
 
+import dk.brics.lightrefactor.types.Equivalence
 import dk.brics.lightrefactor.types.TypeInference
 import dk.brics.lightrefactor.types.TypeNode
 import dk.brics.lightrefactor.types.Typing
@@ -85,7 +86,23 @@ class Renaming {
       base2names.getList(name.base.typ).add(name)
     }
     
-    return base2names.values.toList
+    // unify types that are connected by subtyping and both refer to the original property name
+    val equiv = new Equivalence<TypeNode>
+    for (typ : base2names.keySet) {
+      for (sub : typ.subTypes) {
+        if (base2names.containsKey(sub)) {
+          equiv.unify(typ, sub);
+        }
+      }
+    }
+    
+    val rep2names = new HashMap<TypeNode, ArrayList<AstNode>>
+    for (typ : base2names.keySet) {
+      val rep = equiv.getRep(typ)
+      rep2names.getList(rep).addAll(base2names.get(typ))
+    }
+    
+    return rep2names.values.toList
   }
   
   private def List<ArrayList<AstNode>> computeLocalQuestions(AstNode targetNode) {

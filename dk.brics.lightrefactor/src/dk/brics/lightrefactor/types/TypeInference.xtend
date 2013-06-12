@@ -4,6 +4,9 @@ import dk.brics.lightrefactor.Asts
 import java.util.ArrayList
 import java.util.Collections
 import java.util.HashMap
+import java.util.HashSet
+import java.util.LinkedList
+import java.util.List
 import java.util.Set
 import org.mozilla.javascript.Token
 import org.mozilla.javascript.ast.ArrayComprehension
@@ -50,6 +53,7 @@ import org.mozilla.javascript.ast.WhileLoop
 import org.mozilla.javascript.ast.WithStatement
 
 import static extension dk.brics.lightrefactor.NameRef.*
+import static extension dk.brics.lightrefactor.util.MapExtensions.*
 
 class TypeInference {
   
@@ -165,6 +169,7 @@ class TypeInference {
         }
         if (exp instanceof NewExpression) {
           markConstructor(target)
+          target.typ.getPrty("prototype").addSubtype(exp.typ)
         }
         return NOT_PRIMITIVE
       }
@@ -459,6 +464,33 @@ class TypeInference {
     }
   }
   
+  val subsetWorklist = new LinkedList<TypeNode>
+  private def addSubtype(TypeNode x, TypeNode y) {
+    val xr = x.rep()
+    val yr = y.rep()
+    if (xr != yr) {
+      if (typing.subtypes.getSet(x).add(y)) {
+        typing.supertypes.getList(y).add(x)
+        subsetWorklist.add(x)
+        subsetWorklist.add(y)
+      }
+    }
+  }
+  
+  private def propagateCalls(List<FunctionCall> calls) {
+    for (call : calls) {
+      for (t : call.target.typ.superTypes)  {
+        for (fun : t.getFunctions) {
+          val numArgs = Math::min(call.arguments.size, fun.params.size)
+          for (z : 0..<numArgs) {
+            fun.params.get(z).typ.addSubtype(call.arguments.get(z).typ)
+          }
+          fun.getVar("@return").addSubtype(call.typ)
+        }
+      }
+    }
+  }
+  
   private def finish() {
     // unify window with global object
     unifier.unifyPrty(global, "window", global)
@@ -475,8 +507,33 @@ class TypeInference {
     }
     potentialMethods.clear()
     unifier.complete()
+    
+    // subtyping
+    val calls = new ArrayList<FunctionCall>
+    asts.visitAll [ node |
+      switch node {
+        FunctionCall:
+          calls.add(node)
+      }
+    ]
+    
+    var changed=true
+    while (changed) {
+      propagateCalls(calls)
+      changed=subsetWorklist.size > 0
+      while (!subsetWorklist.isEmpty) {
+        val x = subsetWorklist.pop
+        val y = subsetWorklist.pop
+        // x <: y
+        for (x0 : x.subTypes) {
+          addSubtype(x0, y)
+        }
+        for (y1 : y.superTypes) {
+          addSubtype(x, y1)
+        }
+      }
+    }
   }
-  
   
   def Typing inferTypes() {
     for (ast : asts) {
@@ -493,6 +550,15 @@ class TypingImpl implements Typing {
   val TypeNode global = new TypeNode
   val typeMap = new HashMap<AstNode, TypeNode>
   val scopeMap = new HashMap<Scope, TypeNode>
+  public val subtypes = new HashMap<TypeNode, HashSet<TypeNode>>
+  public val supertypes = new HashMap<TypeNode, ArrayList<TypeNode>>
+  
+  override def superTypes(TypeNode t) {
+    return supertypes.tryList(t.rep).map[it.rep]
+  }
+  override def subTypes(TypeNode t) {
+    return subtypes.trySet(t.rep).map[it.rep]
+  }
   
   override def global() {
     global

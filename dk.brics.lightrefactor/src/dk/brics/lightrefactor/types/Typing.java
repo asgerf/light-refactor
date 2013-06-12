@@ -1,5 +1,6 @@
 package dk.brics.lightrefactor.types;
 
+import java.util.Collection;
 import java.util.Set;
 
 import org.mozilla.javascript.ast.AstNode;
@@ -53,5 +54,8 @@ public interface Typing {
   TypeNode getPrty(TypeNode type, String prty);
   
   Set<String> properties(TypeNode type);
+  
+  Iterable<TypeNode> superTypes(TypeNode type);
+  Iterable<TypeNode> subTypes(TypeNode type);
   
 }
