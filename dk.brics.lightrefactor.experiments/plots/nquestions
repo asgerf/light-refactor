@@ -4,11 +4,13 @@ var program = require('commander')
 var cols = require('./cols/cols')
 
 program
-    .option('-n, --num-questions <N>', 'Number of questions [10]', Number, 10)
+    .option('-n, --num-questions NUM', 'Number of questions [10]', Number, 10)
+    .option('--delta FILE', 'Compare to other namestats.txt')
     .parse(process.argv)
 
 var N = program.numQuestions
 
+var current =
 cols.files(program.args)
     .columns('bench', null, 'searchReplace', 'rename')
     .map({
@@ -23,13 +25,20 @@ cols.files(program.args)
     .map({ // deltas
         rename: function() { return this.rename - this.searchReplace; },
         neither: function() { return this.numPrtys - this.rename }
-    })
-    .map({ // normalize
-        rename: function(x) { return x / this.numPrtys; },
-        searchReplace: function(x) { return x / this.numPrtys },
-        neither: function(x) { return x / this.numPrtys }
-    })
-    .sort('searchReplace')
-    .print('bench', 'searchReplace', 'rename', 'neither')
-    .printErrors()
+    });
+
+if (program.delta) {
+    var base = cols.file(program.delta)
+        .
+} else {
+    current.map({ // normalize
+            rename: function(x) { return x / this.numPrtys; },
+            searchReplace: function(x) { return x / this.numPrtys },
+            neither: function(x) { return x / this.numPrtys }
+        })
+        .sort('searchReplace')
+        .print('bench', 'searchReplace', 'rename', 'neither')
+        .printErrors()
+}
+    
 
