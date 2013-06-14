@@ -1,6 +1,12 @@
 #!/bin/bash
 set -e
 
+CMD="echo"
+if [[ "$1" = "open" ]]
+then
+    CMD="xdg-open"
+fi
+
 ./benchquestions ../output/namestats.txt -b 7spade >tmp/7spade.dat
 
 gnuplot <<\EOF 
@@ -29,10 +35,12 @@ titles = " x search-replace rename neither "
 
 f(x) = 58
 
-plot 'tmp/7spade.dat' using 2:xticlabels(1) title 'search-replace' fill solid linecolor rgb "#8888FF", \
-     ''          using 3:xticlabels(1) title 'rename' fill pattern 2 linecolor rgb "#00FF00", \
+plot 'tmp/7spade.dat' using (0):xticlabels(1) title 'rename' fill pattern 2 linecolor rgb "#00FF00", \
+     ''               using (0):xticlabels(1) title 'search-replace' fill solid linecolor rgb "#8888FF", \
+     ''               using 2:xticlabels(1) notitle fill solid linecolor rgb "#8888FF", \
+     ''               using 3:xticlabels(1) notitle fill pattern 2 linecolor rgb "#00FF00", \
      f(x) notitle linecolor rgb "#777777" with lines 
 
 EOF
 
-echo "output/7spade.pdf"
+"$CMD" "output/7spade.pdf"
