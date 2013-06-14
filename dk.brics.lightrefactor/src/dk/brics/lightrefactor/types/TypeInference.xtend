@@ -145,6 +145,7 @@ class TypeInference {
           if (exp.element instanceof StringLiteral) {
             unify(exp.target.typ.getPrty((exp.element as StringLiteral).value), exp.typ)
           }
+          unify(exp.element.typ.getPrty("@prty-of"), exp.target.typ) // x[p] = y[p] ==> x=y
           return NOT_PRIMITIVE
         }
       EmptyExpression:
@@ -465,21 +466,41 @@ class TypeInference {
   }
   
   val subsetWorklist = new LinkedList<TypeNode>
-  private def addSubtype(TypeNode x, TypeNode y) {
+  private def addSubtype(TypeNode x, TypeNode y) { // adds x <: y
     val xr = x.rep()
     val yr = y.rep()
     if (xr != yr) {
-      if (typing.subtypes.getSet(x).add(y)) {
-        typing.supertypes.getList(y).add(x)
-        subsetWorklist.add(x)
-        subsetWorklist.add(y)
+      if (typing.subtypes.getSet(yr).add(xr)) {
+        typing.supertypes.getList(xr).add(yr)
+        subsetWorklist.add(xr)
+        subsetWorklist.add(yr)
+      }
+    }
+  }
+  
+  private def addCovariant(TypeNode x, TypeNode y) { // called when x <: y
+    if (x.prty.size < y.prty.size) {
+      for (en : x.prty.entrySet) {
+        val xv = en.value
+        val yv = y.prty.get(en.key)
+        if (yv != null) {
+          addSubtype(xv, yv)
+        }
+      }
+    } else {
+      for (en : y.prty.entrySet) {
+        val xv = x.prty.get(en.key)
+        val yv = en.value
+        if (xv != null) {
+          addSubtype(xv, yv)
+        }
       }
     }
   }
   
   private def propagateCalls(List<FunctionCall> calls) {
     for (call : calls) {
-      for (t : call.target.typ.superTypes)  {
+      for (t : call.target.typ.superTypes.append(call.target.typ)) {
         for (fun : t.getFunctions) {
           val numArgs = Math::min(call.arguments.size, fun.params.size)
           for (z : 0..<numArgs) {
@@ -492,8 +513,40 @@ class TypeInference {
   }
   
   private def finish() {
-    // unify window with global object
+    // collect all function calls
+    val calls = new ArrayList<FunctionCall>
+    asts.visitAll [ node |
+      switch node {
+        FunctionCall:
+          calls.add(node)
+      }
+    ]
+    
+    // NATIVE MODEL
     unifier.unifyPrty(global, "window", global)
+    unifier.complete()
+    val extend = global.getPrty("extend")
+    val classCreate = global.getPrty("Class").getPrty("create")
+    for (call : calls) {
+      if (call.target.typ === extend) {
+        val t = call.typ
+        for (arg : call.arguments) {
+          unifier.unifyLater(t, arg.typ)
+        }
+      }
+      else if (call.target.typ === classCreate) {
+        val t = call.typ
+        if (call.arguments.size === 1) {
+          unifier.unifyLater(t.getPrty("prototype"), call.arguments.get(0).typ)
+        }
+        else if (call.arguments.size == 2) {
+          val sup = call.arguments.get(0).typ
+          val classBody = call.arguments.get(1).typ
+          unifier.unifyLater(t.getPrty("prototype"), classBody)
+          sup.getPrty("prototype").addSubtype(classBody)
+        }
+      }
+    }
     
     unifier.complete()
     var i=0
@@ -510,26 +563,21 @@ class TypeInference {
     unifier.complete()
     
     // subtyping
-    val calls = new ArrayList<FunctionCall>
-    asts.visitAll [ node |
-      switch node {
-        FunctionCall:
-          calls.add(node)
-      }
-    ]
-    
     var changed=true
     while (changed) {
       propagateCalls(calls)
       changed=subsetWorklist.size > 0
       while (!subsetWorklist.isEmpty) {
-        val x = subsetWorklist.pop
-        val y = subsetWorklist.pop
+        val y = subsetWorklist.pop.rep()
+        val x = subsetWorklist.pop.rep()
         // x <: y
+//        addCovariant(x,y)
         for (x0 : x.subTypes) {
+          // x0 <: x <: y
           addSubtype(x0, y)
         }
         for (y1 : y.superTypes) {
+          // x <: y <: y1
           addSubtype(x, y1)
         }
       }
@@ -617,7 +665,7 @@ class TypingImpl implements Typing {
       t = new TypeNode()
       type.rep.prty.put(varName, t)
     }
-    t
+    t.rep()
   }
   override def properties(TypeNode type) {
     type.rep.prty.keySet
