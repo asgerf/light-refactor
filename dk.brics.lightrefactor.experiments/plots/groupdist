@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 var program = require('commander')
-var cols = require('./util/cols')
+var cols = require('./cols/cols')
 
 program
     .parse(process.argv)

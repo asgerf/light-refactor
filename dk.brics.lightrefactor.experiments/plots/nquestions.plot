@@ -1,6 +1,12 @@
 #!/bin/bash
 set -e
 
+CMD="echo"
+if [[ "$1" = "open" ]]
+then
+    CMD="xdg-open"
+fi
+
 ./nquestions ../output/namestats.txt -n 3 >tmp/nquestions-3.dat
 
 gnuplot <<\EOF 
@@ -27,15 +33,18 @@ set key horiz
 set key right top
 #set key inside
 #set nokey
+set grid ytics
 
 #set key at 35, -15
 
 titles = " x search-replace rename neither "
 
 
-plot 'tmp/nquestions-3.dat' using ($2*100):xticlabels(1) title 'search-replace' fill solid linecolor rgb "#8888FF", \
-     ''                     using ($3*100):xticlabels(1) title 'rename' fill pattern 2 linecolor rgb "#00FF00"
+plot 'tmp/nquestions-3.dat' using (0):xticlabels(1) title 'rename' fill pattern 2 linecolor rgb "#00FF00", \
+     ''                     using (0):xticlabels(1) title 'search-replace' fill solid linecolor rgb "#8888FF", \
+     ''                     using ($2*100):xticlabels(1) notitle  fill solid linecolor rgb "#8888FF", \
+     ''                     using ($3*100):xticlabels(1) notitle fill pattern 2 linecolor rgb "#00FF00"
 
 EOF
 
-echo "output/nquestions.pdf"
+"$CMD" "output/nquestions.pdf"

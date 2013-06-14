@@ -1,6 +1,12 @@
 #!/bin/sh
 set -e
 
+CMD="echo"
+if [[ "$1" = "open" ]]
+then
+    CMD="xdg-open"
+fi
+
 ./groupdist ../output/groups.txt >tmp/groupdist.dat
 
 gnuplot <<\EOF 
@@ -29,11 +35,15 @@ set key outside
 titles = " x search-replace rename neither "
 
 
-plot 'tmp/groupdist.dat' using ($2*100):xticlabels(1) title '1'    fill solid linecolor rgb "#8888FF", \
-     ''                  using ($3*100):xticlabels(1) title '2'    fill pattern 1 linecolor rgb "#88FF88", \
-     ''                  using ($4*100):xticlabels(1) title '3..9' fill pattern 6 linecolor rgb "#8888FF", \
-     ''                  using ($5*100):xticlabels(1) title '10+'  fill pattern 2 linecolor rgb "#FF2200"
+plot 'tmp/groupdist.dat' using (0):xticlabels(1) title '10+'  fill pattern 2 linecolor rgb "#FF2200", \
+     ''                  using (0):xticlabels(1) title '3..9' fill pattern 6 linecolor rgb "#8888FF", \
+     ''                  using (0):xticlabels(1) title '2'    fill pattern 1 linecolor rgb "#88FF88", \
+     ''                  using (0):xticlabels(1) title '1'    fill solid linecolor rgb "#8888FF", \
+     ''                  using ($2*100):xticlabels(1) notitle      fill solid linecolor rgb "#8888FF", \
+     ''                  using ($3*100):xticlabels(1) notitle      fill pattern 1 linecolor rgb "#88FF88", \
+     ''                  using ($4*100):xticlabels(1) notitle      fill pattern 6 linecolor rgb "#8888FF", \
+     ''                  using ($5*100):xticlabels(1) notitle      fill pattern 2 linecolor rgb "#FF2200"
 
 EOF
 
-echo "output/groupdist.pdf"
+"$CMD" "output/groupdist.pdf"

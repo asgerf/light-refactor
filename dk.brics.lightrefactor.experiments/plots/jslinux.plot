@@ -1,6 +1,12 @@
 #!/bin/bash
 set -e
 
+CMD="echo"
+if [[ "$1" = "open" ]]
+then
+    CMD="xdg-open"
+fi
+
 ./benchquestions ../output/namestats.txt -b jslinux >tmp/jslinux.dat
 
 gnuplot <<\EOF 
@@ -21,7 +27,7 @@ set format y "%g"
 set ytics 50,50,211
 set xtics nomirror
 set ytics add (211)
-#set key inside
+#set key outside top right horiz
 
 set nokey
 
@@ -35,4 +41,4 @@ plot 'tmp/jslinux.dat' using 2:xticlabels(1) title 'search-replace' fill solid l
 
 EOF
 
-echo "output/jslinux.pdf"
+"$CMD" "output/jslinux.pdf"
