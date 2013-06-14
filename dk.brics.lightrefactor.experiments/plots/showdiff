@@ -1,0 +1,43 @@
+#!/usr/bin/env node
+
+var cols = require('./cols/cols')
+var program = require('commander')
+
+program
+    .parse(process.argv)
+
+if (program.args.length != 2) {
+    console.error("Provide two files to diff")
+    process.exit(1)
+}
+
+var file1 = 
+cols.file(program.args[0])
+    .columns('bench', 'prty', 'searchReplace', 'rename')
+    .map({
+        searchReplace: Number,
+        rename: Number
+    })
+
+var file2 =
+cols.file(program.args[1])
+    .columns('bench', 'prty', 'searchReplace2', 'rename2')
+    .map({
+        searchReplace2: Number,
+        rename2: Number
+    })
+
+file1.join(file2)
+    .map({
+        delta: function() { return this.rename2 - this.rename },
+        check: function() {
+            if (this.searchReplace != this.searchReplace2)
+                throw new Error("Diff searchReplace")
+            return null
+        }
+    })
+    .filter({
+        delta: function(x) { return x != 0 }
+    })
+    .print('bench', 'prty', 'delta')
+    .printErrors()

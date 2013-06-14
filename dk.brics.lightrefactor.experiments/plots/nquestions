@@ -4,8 +4,8 @@ var program = require('commander')
 var cols = require('./cols/cols')
 
 program
-    .option('-n, --num-questions NUM', 'Number of questions [10]', Number, 10)
-    .option('--delta FILE', 'Compare to other namestats.txt')
+    .option('-n, --num-questions <NUM>', 'Number of questions [10]', Number, 10)
+    .option('--delta <FILE>', 'Compare to other namestats.txt')
     .parse(process.argv)
 
 var N = program.numQuestions
@@ -21,17 +21,43 @@ cols.files(program.args)
         searchReplace: function(xs) { return xs.filter(function(x) {return x <= N}).length },
         rename: function(xs) { return xs.filter(function(x) {return x <= N}).length },
         numPrtys: function() { return this.bench.length }
-    })
-    .map({ // deltas
-        rename: function() { return this.rename - this.searchReplace; },
-        neither: function() { return this.numPrtys - this.rename }
     });
 
 if (program.delta) {
-    var base = cols.file(program.delta)
-        .
+    cols.file(program.delta)
+        .columns('bench', null, null, 'rename')
+        .map({
+            rename: Number
+        })
+        .group('bench', {
+            rename: function(xs) { return xs.filter(function(x) {return x <= N}).length },
+        })
+        .map({
+            rename2: function() { return this.rename },
+            rename: null
+        })
+        .join(current)
+        .map({ // deltas
+            rename2: function() { return this.rename2 - this.rename },
+            rename: function() { return this.rename - this.searchReplace; },
+            neither: function() { return this.numPrtys - this.rename2 }
+        })
+        .map({ // normalize
+            rename2: function(x) { return x / this.numPrtys; },
+            rename: function(x) { return x / this.numPrtys; },
+            searchReplace: function(x) { return x / this.numPrtys },
+            neither: function(x) { return x / this.numPrtys }
+        })
+        .sort('searchReplace')
+        .print('bench', 'searchReplace', 'rename', 'rename2', 'neither')
+        .printErrors()
 } else {
-    current.map({ // normalize
+    current
+        .map({ // deltas
+            rename: function() { return this.rename - this.searchReplace; },
+            neither: function() { return this.numPrtys - this.rename }
+        })
+        .map({ // normalize
             rename: function(x) { return x / this.numPrtys; },
             searchReplace: function(x) { return x / this.numPrtys },
             neither: function(x) { return x / this.numPrtys }

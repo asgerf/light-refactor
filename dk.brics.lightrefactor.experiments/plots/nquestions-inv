@@ -1,0 +1,41 @@
+#!/usr/bin/env node
+
+var program = require('commander')
+var cols = require('./cols/cols')
+
+program
+    .option('-n, --num-questions <N>', 'Number of questions [10]', Number, 10)
+    .parse(process.argv)
+
+var N = program.numQuestions
+
+function div(x,y) {
+    if (y === 0)
+        return 0;
+    else
+        return x/y;
+}
+
+cols.files(program.args)
+    .columns('bench', null, 'searchReplace', 'rename')
+    .map({
+        searchReplace: Number,
+        rename: Number
+    })
+    .group('bench', {
+        searchReplace: function(xs) { return xs.filter(function(x) {return x <= N}).length },
+        rename: function(xs) { return xs.filter(function(x) {return x <= N}).length },
+        numPrtys: function() { return this.bench.length }
+    })
+    .map({ // deltas
+        rename: function() { return this.rename - this.searchReplace; },
+        neither: function() { return this.numPrtys - this.rename }
+    })
+    .map({ // normalize
+        rename: function(x) { return div(x, this.rename + this.neither) },
+        searchReplace_key: function(x) { return this.searchReplace / this.numPrtys } // only for consistent sorting
+    })
+    .sort('rename')
+    .print('bench', 'rename')
+    .printErrors()
+

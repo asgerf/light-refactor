@@ -500,7 +500,8 @@ class TypeInference {
     while (i < potentialMethods.size) {
       val x = potentialMethods.get(i).rep()
       val y = potentialMethods.get(i+1).rep()
-      if (!x.namespace && !y.namespace) {
+      if (!x.namespace) { // note: the line below is more robust, but this variant was used in the original experiments
+//      if (!x.namespace && !y.namespace) {
         unifier.unifyLater(x,y)
       }
       i = i + 2
