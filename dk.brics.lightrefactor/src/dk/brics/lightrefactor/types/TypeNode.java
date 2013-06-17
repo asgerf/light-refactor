@@ -2,17 +2,22 @@ package dk.brics.lightrefactor.types;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.mozilla.javascript.ast.FunctionNode;
 
 public final class TypeNode {
+  private static int NextId = 0;
+  final int id = NextId++;
   TypeNode parent = this;
   int rank = 0;
   boolean namespace = false;
   Map<String,TypeNode> prty = new HashMap<String,TypeNode>();
   LinkNode<FunctionNode> functions = null;
+  Set<TypeNode> supers = new HashSet<TypeNode>();
   
   TypeNode rep() {
     if (parent != this) {

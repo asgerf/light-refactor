@@ -46,6 +46,13 @@ public class TypeUnifier {
         unifyLater(existingNode, e.getValue());
       }
     }
+    if (x.supers.size() < y.supers.size()) {
+      y.supers.addAll(x.supers);
+      x.supers = y.supers;
+    } else {
+      x.supers.addAll(y.supers);
+      y.supers = null;
+    }
   }
   
   public void unifyPrty(TypeNode x, String prty, TypeNode y) {

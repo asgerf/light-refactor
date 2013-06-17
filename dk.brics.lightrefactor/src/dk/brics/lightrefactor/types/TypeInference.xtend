@@ -118,6 +118,10 @@ class TypeInference {
     } else {
       t.functions.splice(node)
     }
+    for (i : 0 ..< f.params.size) {
+      unify(t.getPrty("@param" + i), f.params.get(i).typ)
+      unify(t.getPrty("@return"), f.scopeObj.getPrty("@return"))
+    }
   }
   
   
@@ -152,8 +156,13 @@ class TypeInference {
         return PRIMITIVE
       FunctionCall: {
         visitExp(exp.target, NOT_VOID)
-        exp.arguments.forEach [ visitExp(it, NOT_VOID) ]
         val target = unfold(exp.target)
+        for (i : 0 ..< exp.arguments.size) {
+          val arg = exp.arguments.get(i)
+          visitExp(arg, NOT_VOID)
+          target.typ.getPrty("@param" + i).addInitialSubtype(arg.typ) 
+        }
+        target.typ.getPrty("@return").addInitialSubtype(exp.typ)
         switch target {
           FunctionNode: {
             val numArgs = Math::min(exp.arguments.size, target.paramCount)
@@ -170,7 +179,7 @@ class TypeInference {
         }
         if (exp instanceof NewExpression) {
           markConstructor(target)
-          target.typ.getPrty("prototype").addSubtype(exp.typ)
+          target.typ.getPrty("prototype").addInitialSubtype(exp.typ)
         }
         return NOT_PRIMITIVE
       }
@@ -465,6 +474,12 @@ class TypeInference {
     }
   }
   
+  val initialSubtypes = new LinkedList<TypeNode>
+  private def addInitialSubtype(TypeNode x, TypeNode y) {
+    initialSubtypes.add(x)
+    initialSubtypes.add(y)
+  }
+  
   val subsetWorklist = new LinkedList<TypeNode>
   private def addSubtype(TypeNode x, TypeNode y) { // adds x <: y
     val xr = x.rep()
@@ -543,7 +558,7 @@ class TypeInference {
           val sup = call.arguments.get(0).typ
           val classBody = call.arguments.get(1).typ
           unifier.unifyLater(t.getPrty("prototype"), classBody)
-          sup.getPrty("prototype").addSubtype(classBody)
+          sup.getPrty("prototype").addInitialSubtype(classBody)
         }
       }
     }
@@ -562,24 +577,32 @@ class TypeInference {
     potentialMethods.clear()
     unifier.complete()
     
+    // apply initial subtyping constraints
+    while (!initialSubtypes.isEmpty) {
+      val y = initialSubtypes.pop().rep()
+      val x = initialSubtypes.pop().rep()
+      x.addSubtype(y)
+    }
+    
     // subtyping
     var changed=true
     while (changed) {
-      propagateCalls(calls)
+//      propagateCalls(calls)
       changed=subsetWorklist.size > 0
       while (!subsetWorklist.isEmpty) {
+//        println(subsetWorklist.size)
         val y = subsetWorklist.pop.rep()
         val x = subsetWorklist.pop.rep()
         // x <: y
-//        addCovariant(x,y)
-        for (x0 : x.subTypes) {
-          // x0 <: x <: y
-          addSubtype(x0, y)
-        }
-        for (y1 : y.superTypes) {
-          // x <: y <: y1
-          addSubtype(x, y1)
-        }
+        addCovariant(x,y)
+//        for (x0 : x.subTypes) {
+//          // x0 <: x <: y
+//          addSubtype(x0, y)
+//        }
+//        for (y1 : y.superTypes) {
+//          // x <: y <: y1
+//          addSubtype(x, y1)
+//        }
       }
     }
   }
@@ -603,10 +626,10 @@ class TypingImpl implements Typing {
   public val supertypes = new HashMap<TypeNode, ArrayList<TypeNode>>
   
   override def superTypes(TypeNode t) {
-    return supertypes.tryList(t.rep).map[it.rep]
+    return supertypes.getList(t.rep)
   }
   override def subTypes(TypeNode t) {
-    return subtypes.trySet(t.rep).map[it.rep]
+    return subtypes.getSet(t.rep)
   }
   
   override def global() {
