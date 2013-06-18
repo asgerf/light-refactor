@@ -58,4 +58,6 @@ public interface Typing {
   Iterable<TypeNode> superTypes(TypeNode type);
   Iterable<TypeNode> subTypes(TypeNode type);
   
+  Iterable<TypeNode> rootTypes();
+  
 }

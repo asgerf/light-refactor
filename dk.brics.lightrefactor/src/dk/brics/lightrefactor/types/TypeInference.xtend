@@ -120,8 +120,8 @@ class TypeInference {
     }
     for (i : 0 ..< f.params.size) {
       unify(t.getPrty("@param" + i), f.params.get(i).typ)
-      unify(t.getPrty("@return"), f.scopeObj.getPrty("@return"))
     }
+    unify(t.getPrty("@return"), f.getVar("@return"))
   }
   
   
@@ -578,16 +578,16 @@ class TypeInference {
     unifier.complete()
     
     while (!initialSubtypes.isEmpty) {
-      val y = initialSubtypes.pop().rep()
-      val x = initialSubtypes.pop().rep() // x <: y
+      val y = initialSubtypes.removeLast().rep()
+      val x = initialSubtypes.removeLast().rep() // x <: y
       if (x != y)
         x.supers.add(y)
     }
     
-    val subt = new SubtypeInference();
-    subt.inferSubTypes(typing.allTypes);
-    
-    for (TypeNode _typ : typing.allTypes) {
+//    val subt = new SubtypeInference();
+//    subt.inferSubTypes(typing.typeMap.values()); // FIXME: allTypes is not all types! only AST-bound types.
+//    
+    for (TypeNode _typ : typing.typeMap.values()) {
       val typ = _typ.rep
       for (TypeNode sup : typ.supers) {
 //          println("sdf")
@@ -642,13 +642,13 @@ class TypeInference {
 
 class TypingImpl implements Typing {
   val TypeNode global = new TypeNode
-  val typeMap = new HashMap<AstNode, TypeNode>
+  public val typeMap = new HashMap<AstNode, TypeNode>
   val scopeMap = new HashMap<Scope, TypeNode>
   public val subtypes = new HashMap<TypeNode, HashSet<TypeNode>>
 //  public val supertypes = new HashMap<TypeNode, ArrayList<TypeNode>>
   
-  def allTypes() {
-    typeMap.values()
+  override def rootTypes() {
+    typeMap.values().map[it.rep]
   }
   
   override def superTypes(TypeNode t) {

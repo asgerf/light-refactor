@@ -7,7 +7,7 @@ then
     CMD="xdg-open"
 fi
 
-./nquestions-inv ../output/namestats.txt -n 3 >tmp/nquestions-inv-3.dat
+./nquestions ../output/namestats.txt -n 3 --sort improvement >tmp/nquestions-inv-3.dat
 
 gnuplot <<\EOF 
 
@@ -41,7 +41,7 @@ set grid 0 0
 titles = " x search-replace rename neither "
 
 
-plot 'tmp/nquestions-inv-3.dat' using ($2*100):xticlabels(1) title 'rename' fill pattern 2 linecolor rgb "#00FF00"
+plot 'tmp/nquestions-inv-3.dat' using (($4-$3)/($2-$3)*100):xticlabels(1) title 'rename' fill pattern 2 linecolor rgb "#00FF00"
 
 EOF
 

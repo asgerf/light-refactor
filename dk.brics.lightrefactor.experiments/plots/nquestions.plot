@@ -42,8 +42,8 @@ titles = " x search-replace rename neither "
 
 plot 'tmp/nquestions-3.dat' using (0):xticlabels(1) title 'rename' fill pattern 2 linecolor rgb "#00FF00", \
      ''                     using (0):xticlabels(1) title 'search-replace' fill solid linecolor rgb "#8888FF", \
-     ''                     using ($2*100):xticlabels(1) notitle  fill solid linecolor rgb "#8888FF", \
-     ''                     using ($3*100):xticlabels(1) notitle fill pattern 2 linecolor rgb "#00FF00"
+     ''                     using ($3/$2*100):xticlabels(1) notitle  fill solid linecolor rgb "#8888FF", \
+     ''                     using (($4-$3)/$2*100):xticlabels(1) notitle fill pattern 2 linecolor rgb "#00FF00"
 
 EOF
 
