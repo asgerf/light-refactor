@@ -7,6 +7,7 @@ import dk.brics.lightrefactor.types.Typing
 import java.util.ArrayList
 import java.util.HashMap
 import java.util.HashSet
+import java.util.LinkedList
 import java.util.List
 import java.util.Set
 import org.mozilla.javascript.Function
@@ -87,12 +88,20 @@ class Renaming {
     }
     
     // unify types that are connected by subtyping and both refer to the original property name
+    val visited = new HashSet<TypeNode>(base2names.keySet)
+    val worklist = new LinkedList<TypeNode>(base2names.keySet)
     val equiv = new Equivalence<TypeNode>
-    for (typ : base2names.keySet) {
+    while (!worklist.isEmpty) {
+      val typ = worklist.pop()
       for (sub : typ.subTypes) {
-        if (base2names.containsKey(sub)) {
-          equiv.unify(typ, sub);
+        if (equiv.unify(typ, sub)) {
+          if (visited.add(sub)) {
+            worklist.add(sub)
+          }
         }
+//        if (base2names.containsKey(sub)) {
+//          equiv.unify(typ, sub);
+//        }
       }
     }
     
