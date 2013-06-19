@@ -6,7 +6,6 @@ import java.util.Collections
 import java.util.HashMap
 import java.util.HashSet
 import java.util.LinkedList
-import java.util.List
 import java.util.Set
 import org.mozilla.javascript.Token
 import org.mozilla.javascript.ast.ArrayComprehension
@@ -526,6 +525,34 @@ class TypeInference {
 //      }
 //    }
 //  }
+
+  /** Builds a set of all representative type nodes */
+  private def makeTypeSet() {
+  	val result = new HashSet<TypeNode>
+  	val worklist = new LinkedList<TypeNode>
+  	worklist.add(global.rep)
+  	result.add(global.rep)
+  	for (t : typing.typeMap.values) {
+  		if (result.add(t.rep)) {
+  			worklist.add(t.rep)
+  		}
+  	}
+  	while (!worklist.isEmpty) {
+  		val t = worklist.pop()
+  		for (en : t.prty.entrySet) {
+  			val w = en.value.rep
+  			if (result.add(w)) {
+  				worklist.add(w)
+  			}
+  		}
+  		for (w : t.supers) {
+  			if (result.add(w.rep)) {
+  				worklist.add(w.rep)
+  			}
+  		}
+  	}
+  	return result
+  }
   
   private def finish() {
     // collect all function calls
@@ -584,10 +611,12 @@ class TypeInference {
         x.supers.add(y)
     }
     
+    val allTypes = makeTypeSet()
+    
     val subt = new SubtypeInference();
-    subt.inferSubTypes(typing.typeMap.values()); // FIXME: allTypes is not all types! only AST-bound types.
+    subt.inferSubTypes(allTypes);
 //    
-    for (TypeNode _typ : typing.typeMap.values()) {
+    for (TypeNode _typ : allTypes) {
       val typ = _typ.rep
       for (TypeNode sup : typ.supers) {
 //          println("sdf")
