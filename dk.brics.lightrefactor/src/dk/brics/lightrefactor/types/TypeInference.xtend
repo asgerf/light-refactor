@@ -6,6 +6,7 @@ import java.util.Collections
 import java.util.HashMap
 import java.util.HashSet
 import java.util.LinkedList
+import java.util.List
 import java.util.Set
 import org.mozilla.javascript.Token
 import org.mozilla.javascript.ast.ArrayComprehension
@@ -110,6 +111,10 @@ class TypeInference {
     potentialMethods.add(receiver)
   }
   
+  private def returnType(FunctionNode f) {
+  	return f.getVar("@return")
+  }
+  
   private def addFunction(TypeNode t, FunctionNode f) {
     val node = new LinkNode<FunctionNode>(f)
     if (t.functions == null) {
@@ -120,7 +125,7 @@ class TypeInference {
     for (i : 0 ..< f.params.size) {
       unify(t.getPrty("@param" + i), f.params.get(i).typ)
     }
-    unify(t.getPrty("@return"), f.getVar("@return"))
+    unify(t.getPrty("@return"), f.returnType)
   }
   
   
@@ -168,7 +173,7 @@ class TypeInference {
             for (i : 0..<numArgs) {
               unify(exp.arguments.get(i).typ, target.params.get(i).typ)
             }
-            unify(target.getVar("@return"), exp.typ)
+            unify(target.returnType, exp.typ)
             if (exp instanceof NewExpression) {
               unify(target.getVar("@this"), exp.typ)
             } else {
@@ -284,7 +289,7 @@ class TypeInference {
               unify(fun.getVar("@this"), obj)
               val ret = new TypeNode
               unify(obj.getPrty(name), ret)
-              unify(fun.getVar("@return"), ret)
+              unify(fun.returnType, ret)
             } else if (prop.setter) {
               val fun = prop.right as FunctionNode
               unify(fun.getVar("@this"), obj)
@@ -411,7 +416,7 @@ class TypeInference {
           visitExp(stmt.returnValue, NOT_VOID)
           val fun = stmt.enclosingFunction
           if (fun != null) { // ignore returns at top-level
-            unify(fun.getVar("@return"), stmt.returnValue.typ)
+            unify(fun.returnType, stmt.returnValue.typ)
           }
         }
       }
@@ -554,6 +559,83 @@ class TypeInference {
   	return result
   }
   
+  private def inlineCall(FunctionCall call, FunctionNode target) {
+  	var changed = false
+    val fun2caller = new HashMap<TypeNode, TypeNode>
+    val worklist = new LinkedList<TypeNode>
+    val numArgs = Math::min(call.arguments.size, target.params.size)
+    for (j : 0 ..< numArgs) {
+      val arg = call.arguments.get(j).typ
+      val parm = target.params.get(j).typ
+      val parmX = fun2caller.get(parm)
+      if (parmX == null) {
+        fun2caller.put(parm, arg)
+        worklist.add(parm)
+      } else if (parmX != arg) {
+        changed = true
+        unifier.unifyLater(arg, parmX) // unify LATER to ensure map only contains reps
+      }
+    }
+    val result = call.typ
+    val returned = target.returnType
+    val returnedX = fun2caller.get(returned)
+    if (returnedX == null) {
+      fun2caller.put(returned, result)
+      worklist.add(returned)
+    } else if (returnedX != result) {
+      changed = true
+      unifier.unifyLater(returnedX, result)
+    }
+    while (!worklist.isEmpty) {
+      val funt = worklist.pop()
+      val callt = fun2caller.get(funt)
+      for (en : funt.prty.entrySet) {
+        val funw = en.value.rep
+        val _callw = callt.prty.get(en.key)
+        if (_callw != null) {
+          val callw = _callw.rep
+          val funwX = fun2caller.get(funw)
+          if (funwX == null) {
+            fun2caller.put(funw, callw)
+            worklist.add(funw)
+          } else if (funwX != callw) {
+            changed = true
+            unifier.unifyLater(funwX, callw)
+          }
+        }
+      }
+    }
+    unifier.complete()
+    return changed
+  }
+  
+  private def void addTransitiveSupers(TypeNode _t, Set<TypeNode> result) {
+    val t = _t.rep
+    if (result.add(t)) {
+      for (_sup : t.supers) {
+        val sup = _sup.rep
+        addTransitiveSupers(sup, result)
+      }
+    }
+  }
+  private def getTransitiveSupers(TypeNode t) {
+    val result = new HashSet<TypeNode>
+    addTransitiveSupers(t, result)
+    return result
+  }
+  
+  private def inlineCalls(List<FunctionCall> calls) {
+  	var changed = false
+    for (call : calls) {
+      for (targetTyp : call.target.typ.transitiveSupers) { // handle inherited call targets
+        for (target : targetTyp.getFunctions) {
+          changed = inlineCall(call, target) || changed
+        }  
+      }
+  	}
+  	return changed
+  }
+  
   private def finish() {
     // collect all function calls
     val calls = new ArrayList<FunctionCall>
@@ -613,8 +695,17 @@ class TypeInference {
     
     val allTypes = makeTypeSet()
     
-    val subt = new SubtypeInference();
-    subt.inferSubTypes(allTypes);
+    var changed = true
+    while (changed) {
+      changed = false
+      
+		  val subt = new SubtypeInference();
+    	subt.inferSubTypes(allTypes);
+    	
+    	// Opportunistic call inlining
+    	changed = inlineCalls(calls) || changed
+    }
+    
 //    
     for (TypeNode _typ : allTypes) {
       val typ = _typ.rep
