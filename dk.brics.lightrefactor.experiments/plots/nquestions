@@ -4,7 +4,7 @@ var program = require('commander')
 var cols = require('./cols/cols')
 
 program
-    .option('-n, --num-questions <NUM>', 'Number of questions [10]', Number, 10)
+    .option('-n, --num-questions <NUM>', 'Number of questions [3]', Number, 3)
     .option('--delta <FILE>', 'Compare to other namestats.txt')
     .option('--sort <KEY>', 'Sort by: baseline improvement')
     .parse(process.argv)
@@ -16,15 +16,22 @@ if (program.args.length !== 1) {
 
 var N = program.numQuestions
 
+function div(x,y) {
+    if (y == 0)
+        return 0;
+    else
+        return x/y;
+}
+
 // Determine sorting function
 var sortKey;
 function makeSortKey() {
     program.sort = program.sort || "baseline";
     switch (program.sort) {
         case 'improvement':
-            return function() { return (this.rename - this.searchReplace) / (this.numPrtys - this.searchReplace) }
+            return function() { return div(this.rename - this.searchReplace, this.numPrtys - this.searchReplace) }
         case 'baseline':
-            return function() { return this.searchReplace / this.numPrtys }
+            return function() { return div(this.searchReplace, this.numPrtys) }
         default:
             console.error("Invalid sort key: " + program.sort)
             return process.exit(1)

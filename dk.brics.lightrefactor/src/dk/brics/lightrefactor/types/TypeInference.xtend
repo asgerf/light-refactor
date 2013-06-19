@@ -540,7 +540,7 @@ class TypeInference {
     // NATIVE MODEL
     unifier.unifyPrty(global, "window", global)
     unifier.complete()
-    val extend = global.getPrty("extend")
+    val extend = global.getPrty("jQuery").getPrty("extend")
     val classCreate = global.getPrty("Class").getPrty("create")
     for (call : calls) {
       if (call.target.typ === extend) {
@@ -584,8 +584,8 @@ class TypeInference {
         x.supers.add(y)
     }
     
-//    val subt = new SubtypeInference();
-//    subt.inferSubTypes(typing.typeMap.values()); // FIXME: allTypes is not all types! only AST-bound types.
+    val subt = new SubtypeInference();
+    subt.inferSubTypes(typing.typeMap.values()); // FIXME: allTypes is not all types! only AST-bound types.
 //    
     for (TypeNode _typ : typing.typeMap.values()) {
       val typ = _typ.rep

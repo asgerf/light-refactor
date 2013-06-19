@@ -5,33 +5,50 @@ var cols = require('./cols/cols')
 
 program
     .option('-b, --bench <BENCH>', 'Benchmark to use')
+    .option('-n, --num-questions <NUM>', 'Number of questions to map out', 9)
     .parse(process.argv)
 
-var nums = cols.data([0,1,2,3,4,5,6,7,8,9]).map(function() {return {n:this}})
+var questionRange = []
+for (var i=0; i<=program.numQuestions; i++) {
+    questionRange.push(i);
+}
 
-cols.files(program.args)
-    .columns('bench', null, 'searchReplace', 'rename')
-    .map({
-        searchReplace: Number,
-        rename: Number
-    })
-    .filter({
-        bench: function(x) { return x === program.bench }
-    })
-    .then(function(data) {
-        if (data.length === 0) {
-            throw new Error("No benchmark named " + program.bench)
-        } else {
-            return data
-        }
-    })
-    .join(nums)
-    .group('n', {
-        searchReplace: function(xs) { var n = this.n[0]; return xs.filter(function(x) { return x <= n }).length },
-        rename: function(xs) { var n = this.n[0]; return xs.filter(function(x) { return x <= n }).length }
-    })
-    .map({ // delta
-        rename: function(x) { return x - this.searchReplace }
-    })
-    .print('n', 'searchReplace', 'rename')
+var nums = cols.data(questionRange).map(function() {return {n:this}})
+
+function load(file) {
+    return cols
+        .file(file)
+        .columns('bench', null, 'searchReplace', 'rename')
+        .map({
+            searchReplace: Number,
+            rename: Number
+        })
+        .filter({
+            bench: function(x) { return x === program.bench }
+        })
+        .then(function(data) {
+            if (data.length === 0) {
+                throw new Error("No benchmark named " + program.bench)
+            } else {
+                return data
+            }
+        })
+        .join(nums)
+        .group('n', {
+            searchReplace: function(xs) { var n = this.n[0]; return xs.filter(function(x) { return x <= n }).length },
+            rename: function(xs) { var n = this.n[0]; return xs.filter(function(x) { return x <= n }).length }
+        });
+}
+
+var data = cols.data([])// load(program.args[0])
+
+for (var i=0; i<program.args.length; i++) {
+    data = data.append(load(program.args[i]))
+}
+
+data = data.group('n', {
+    searchReplace: cols.first
+})
+
+data.print('n', 'searchReplace', 'rename')
     .printErrors()

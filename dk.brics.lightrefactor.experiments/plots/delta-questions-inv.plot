@@ -8,7 +8,8 @@ then
     CMD="xdg-open"
 fi
 
-./nquestions data/namestats.orig.txt --delta ../output/namestats.txt $* >tmp/delta-questions.dat
+#./nquestions ../output/namestats.txt --delta data/namestats.full.txt --sort improvement $* >tmp/delta-questions.dat
+./nquestions data/namestats.orig.txt --delta ../output/namestats.txt --sort improvement $* >tmp/delta-questions.dat
 
 gnuplot <<\EOF 
 
@@ -40,10 +41,8 @@ set grid ytics
 
 
 plot 'tmp/delta-questions.dat' using (0):xticlabels(1) title 'rename' fill pattern 2 linecolor rgb "#00FF00", \
-     ''                        using (0):xticlabels(1) title 'search-replace' fill solid linecolor rgb "#8888FF", \
-     ''                        using ($3/$2*100):xticlabels(1) notitle  fill solid linecolor rgb "#8888FF", \
-     ''                        using (($4-$3)/$2*100):xticlabels(1) notitle fill pattern 2 linecolor rgb "#00FF00", \
-     ''                        using (($5-$4)/$2*100):xticlabels(1) title 'new' fill pattern 2 linecolor rgb "#FF0000"
+     ''                        using (($4-$3)/($2-$3)*100):xticlabels(1) notitle fill pattern 2 linecolor rgb "#00FF00", \
+     ''                        using (($5-$4)/($2-$3)*100):xticlabels(1) title 'new' fill pattern 2 linecolor rgb "#FF0000"
 
 EOF
 

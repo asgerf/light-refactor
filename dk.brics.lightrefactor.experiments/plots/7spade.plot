@@ -38,7 +38,7 @@ f(x) = 58
 plot 'tmp/7spade.dat' using (0):xticlabels(1) title 'rename' fill pattern 2 linecolor rgb "#00FF00", \
      ''               using (0):xticlabels(1) title 'search-replace' fill solid linecolor rgb "#8888FF", \
      ''               using 2:xticlabels(1) notitle fill solid linecolor rgb "#8888FF", \
-     ''               using 3:xticlabels(1) notitle fill pattern 2 linecolor rgb "#00FF00", \
+     ''               using ($3-$2):xticlabels(1) notitle fill pattern 2 linecolor rgb "#00FF00", \
      f(x) notitle linecolor rgb "#777777" with lines 
 
 EOF

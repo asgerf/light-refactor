@@ -36,7 +36,7 @@ titles = " x search-replace rename neither "
 f(x) = 211
 
 plot 'tmp/jslinux.dat' using 2:xticlabels(1) title 'search-replace' fill solid linecolor rgb "#8888FF", \
-     ''          using 3:xticlabels(1) title 'rename' fill pattern 2 linecolor rgb "#00FF00", \
+     ''                using ($3-$2):xticlabels(1) title 'rename' fill pattern 2 linecolor rgb "#00FF00", \
      f(x) notitle linecolor rgb "#777777" with lines 
 
 EOF

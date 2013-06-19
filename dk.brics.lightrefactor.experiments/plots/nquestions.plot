@@ -4,10 +4,11 @@ set -e
 CMD="echo"
 if [[ "$1" = "open" ]]
 then
+    shift
     CMD="xdg-open"
 fi
 
-./nquestions ../output/namestats.txt -n 3 >tmp/nquestions-3.dat
+./nquestions ../output/namestats.txt $* >tmp/nquestions-3.dat
 
 gnuplot <<\EOF 
 
