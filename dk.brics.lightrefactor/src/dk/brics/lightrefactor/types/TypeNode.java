@@ -19,6 +19,16 @@ public final class TypeNode {
   LinkNode<FunctionNode> functions = null;
   Set<TypeNode> supers = new HashSet<TypeNode>();
   
+  FunctionNode context;
+  
+  boolean isClone = false;
+  TypeNode clone = null;
+  int cloneNr = -1;
+
+  TypeNode(FunctionNode context) {
+    this.context = context;
+  }
+  
   TypeNode rep() {
     if (parent != this) {
       return parent = parent.rep();

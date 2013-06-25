@@ -13,29 +13,28 @@ import java.util.Stack;
 
 public class SubtypeInference {
   
-  private TypeUnifier unifier = new TypeUnifier();
+  private TypeUnifier unifier;
+  
+  public SubtypeInference(TypeUnifier unifier) {
+    this.unifier = unifier;
+  }
   
   private void unify(TypeNode x, TypeNode y) {
     unifier.unify(x,y);
   }
   
-  public void inferSubTypes(Collection<TypeNode> typeNodes) {
+  public boolean inferSubTypes(Collection<TypeNode> typeNodes) {
     Set<TypeNode> debug = new HashSet<TypeNode>();
+    boolean performedChanges = false;
     boolean changed = true;
     while (changed) {
       changed = false;
-//      System.out.println("K = " + debug.size());
-//      System.out.println("Searching");
       SCC scc = new SCC();
       for (TypeNode tn : typeNodes) {
         tn = tn.rep();
-//        if (tn.supers.contains(tn))
-//          throw new RuntimeException("Subtype of self");
         scc.visit(tn);
       }
-      unifier.complete();
-//      System.out.println("Found " + scc.numCycles + " cycles");
-//      System.out.println("Found " + scc.newSubTypes.size() + " new subtype items");
+      changed |= unifier.complete();
       int numNewEdges = 0;
       for (SubTypeItem sti : scc.newSubTypes) {
         TypeNode sub = sti.sub.rep();
@@ -53,8 +52,9 @@ public class SubtypeInference {
           }
         }
       }
-//      System.out.println("Found " + numNewEdges + " new edges");
+      performedChanges |= changed;
     }
+    return performedChanges;
   }
   
   private static class SubTypeItem {

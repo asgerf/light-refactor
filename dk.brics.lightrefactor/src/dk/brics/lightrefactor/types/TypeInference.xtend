@@ -6,7 +6,10 @@ import java.util.Collections
 import java.util.HashMap
 import java.util.HashSet
 import java.util.LinkedList
+import java.util.List
+import java.util.Map
 import java.util.Set
+import java.util.Stack
 import org.mozilla.javascript.Token
 import org.mozilla.javascript.ast.ArrayComprehension
 import org.mozilla.javascript.ast.ArrayLiteral
@@ -57,9 +60,13 @@ import static extension dk.brics.lightrefactor.util.MapExtensions.*
 class TypeInference {
   
   private val Asts asts
+  private extension val FunctionLca lca
+  private val TypeUnifier unifier 
   
   new (Asts asts) {
     this.asts = asts
+    this.lca = new FunctionLca(asts)
+    this.unifier = new TypeUnifier(lca)
   }
   
   private var Set<ScriptNode> ignored = Collections::emptySet
@@ -68,7 +75,6 @@ class TypeInference {
     this.ignored = ignored
   }
   
-  private val unifier = new TypeUnifier
   
   private val potentialMethods = new ArrayList<TypeNode> // occurs in pairs of two: host followed by receiver
   
@@ -79,6 +85,14 @@ class TypeInference {
   
   private static val PRIMITIVE = true
   private static val NOT_PRIMITIVE = false
+  
+  private val objectProto = new TypeNode(null)
+  private val functionProto = new TypeNode(null)
+
+  private val functionStack = new Stack<FunctionNode>
+  private def currentContext() {
+    functionStack.peek()
+  }
 
   private def unify(TypeNode x, TypeNode ... ys) {
     for (y : ys) {
@@ -110,6 +124,9 @@ class TypeInference {
     potentialMethods.add(receiver)
   }
   
+  private def thisType(FunctionNode f) {
+    return f.getVar("@this")
+  }
   private def returnType(FunctionNode f) {
   	return f.getVar("@return")
   }
@@ -286,16 +303,12 @@ class TypeInference {
             if (prop.getter) {
               val fun = prop.right as FunctionNode
               unify(fun.getVar("@this"), obj)
-              val ret = new TypeNode
-              unify(obj.getPrty(name), ret)
-              unify(fun.returnType, ret)
+              unify(obj.getPrty(name), fun.returnType)
             } else if (prop.setter) {
               val fun = prop.right as FunctionNode
               unify(fun.getVar("@this"), obj)
               if (fun.paramCount >= 1) {
-                val t = new TypeNode
-                unify(obj.getPrty(name), t)
-                unify(fun.getVar(fun.params.get(0).string), t)
+                unify(obj.getPrty(name), fun.getVar(fun.params.get(0).string))
               }
             } else { // initializer
               unify(obj.getPrty(name), prop.right.typ)
@@ -457,24 +470,27 @@ class TypeInference {
   }
   
   private def visitFunction(FunctionNode fun) {
-    val thisNode = new TypeNode
-    unify(fun.typ.getPrty("prototype"), thisNode)
-    unify(fun.getVar("@this"), thisNode)
+    fun.typ.makeSubtypeOf(functionProto)
+    thisType(fun).makeSubtypeOf(fun.typ.getPrty("prototype"))
     for (i : 0..<fun.paramCount) {
       val parm = fun.params.get(i)
       unify(fun.getVar(parm.string), parm.typ)
     }
     if (!ignored.contains(fun)) {
+      functionStack.push(fun)
       visitStmt(fun.body)
+      functionStack.pop()
     }
   }
   
-  private def visitAST(AstRoot root) {
+  private def void visitAST(AstRoot root) {
     if (ignored.contains(root))
       return;
+    functionStack.push(null)
     for (stmt : root.statements) {
       visitStmt(stmt)
     }
+    functionStack.pop()
   }
   
   val initialSubtypes = new LinkedList<TypeNode>
@@ -483,53 +499,6 @@ class TypeInference {
     initialSubtypes.add(y)
   }
   
-//  val subsetWorklist = new LinkedList<TypeNode>
-//  private def makeSubtypeOfWL(TypeNode x, TypeNode y) { // adds x <: y
-//    val xr = x.rep()
-//    val yr = y.rep()
-//    if (xr != yr) {
-//      if (typing.subtypes.getSet(yr).add(xr)) {
-//        typing.supertypes.getList(xr).add(yr)
-//        subsetWorklist.add(xr)
-//        subsetWorklist.add(yr)
-//      }
-//    }
-//  }
-  
-//  private def addCovariant(TypeNode x, TypeNode y) { // called when x <: y
-//    if (x.prty.size < y.prty.size) {
-//      for (en : x.prty.entrySet) {
-//        val xv = en.value
-//        val yv = y.prty.get(en.key)
-//        if (yv != null) {
-//          xv.makeSubtypeOfWL(yv)
-//        }
-//      }
-//    } else {
-//      for (en : y.prty.entrySet) {
-//        val xv = x.prty.get(en.key)
-//        val yv = en.value
-//        if (xv != null) {
-//          xv.makeSubtypeOfWL(yv)
-//        }
-//      }
-//    }
-//  }
-  
-//  private def propagateCalls(List<FunctionCall> calls) {
-//    for (call : calls) {
-//      for (t : call.target.typ.superTypes.append(call.target.typ)) {
-//        for (fun : t.getFunctions) {
-//          val numArgs = Math::min(call.arguments.size, fun.params.size)
-//          for (z : 0..<numArgs) {
-//            fun.params.get(z).typ.addSubtype(call.arguments.get(z).typ)
-//          }
-//          fun.getVar("@return").addSubtype(call.typ)
-//        }
-//      }
-//    }
-//  }
-
   /** Builds a set of all representative type nodes */
   private def makeTypeSet() {
   	val result = new HashSet<TypeNode>
@@ -558,54 +527,63 @@ class TypeInference {
   	return result
   }
   
+  var clonePhase = 1
+  
+  private def TypeNode makeClone(TypeNode _self, FunctionNode boundCtx, FunctionNode dstCtx) {
+    val self = _self.rep();
+    if (self.cloneNr == clonePhase) {
+      return self.clone;
+    } else {
+      self.cloneNr = clonePhase
+      if (self.context === boundCtx) {
+        self.clone = new TypeNode(dstCtx);
+        self.clone.isClone = true;
+        // self.clone.supers.addAll(supers); // supers are not cloned [TODO: try with supers]
+        for (en : self.prty.entrySet()) {
+          val v = en.getValue().rep();
+          if (!v.isClone) {
+            val clone = v.makeClone(boundCtx, dstCtx)
+            if (clone != null) {
+              self.clone.prty.put(en.getKey(), clone);
+            }
+          }
+        }
+      } else if (self.context.isAncestorOf(dstCtx)) {
+        self.clone = self
+      } else {
+        self.clone = null
+      }
+      return self.clone;
+    }
+  }
+  
+  private def void unifyUnlessNull(TypeNode x, TypeNode y) {
+    if (y != null) {
+      unifier.unifyLater(x,y)
+    }
+  }
+  
   private def inlineCall(FunctionCall call, FunctionNode target) {
-  	var changed = false
-    val fun2caller = new HashMap<TypeNode, TypeNode>
-    val worklist = new LinkedList<TypeNode>
+    val callScope = call.getEnclosingFunction();
+    clonePhase = clonePhase + 1
     val numArgs = Math::min(call.arguments.size, target.params.size)
     for (j : 0 ..< numArgs) {
       val arg = call.arguments.get(j).typ
       val parm = target.params.get(j).typ
-      val parmX = fun2caller.get(parm)
-      if (parmX == null) {
-        fun2caller.put(parm, arg)
-        worklist.add(parm)
-      } else if (parmX != arg) {
-        changed = true
-        unifier.unifyLater(arg, parmX) // unify LATER to ensure map only contains reps
+      unifyUnlessNull(arg, parm.makeClone(target, callScope))
+    }
+    unifyUnlessNull(call.typ, target.returnType.makeClone(target, callScope))
+    if (call instanceof NewExpression) {
+      unifyUnlessNull(call.typ, target.thisType.makeClone(target, callScope))
+    } else {
+      val targetExp = call.target
+      switch targetExp {
+        PropertyGet:
+          unifyUnlessNull(targetExp.left.typ, target.thisType.makeClone(target, callScope))
+        ElementGet:
+          unifyUnlessNull(targetExp.target.typ, target.thisType.makeClone(target, callScope))
       }
     }
-    val result = call.typ
-    val returned = target.returnType
-    val returnedX = fun2caller.get(returned)
-    if (returnedX == null) {
-      fun2caller.put(returned, result)
-      worklist.add(returned)
-    } else if (returnedX != result) {
-      changed = true
-      unifier.unifyLater(returnedX, result)
-    }
-    while (!worklist.isEmpty) {
-      val funt = worklist.pop()
-      val callt = fun2caller.get(funt)
-      for (en : funt.prty.entrySet) {
-        val funw = en.value.rep
-        val _callw = callt.prty.get(en.key)
-        if (_callw != null) {
-          val callw = _callw.rep
-          val funwX = fun2caller.get(funw)
-          if (funwX == null) {
-            fun2caller.put(funw, callw)
-            worklist.add(funw)
-          } else if (funwX != callw) {
-            changed = true
-            unifier.unifyLater(funwX, callw)
-          }
-        }
-      }
-    }
-    unifier.complete()
-    return changed
   }
   
   private def void addTransitiveSupers(TypeNode _t, Set<TypeNode> result) {
@@ -624,15 +602,52 @@ class TypeInference {
   }
   
   private def inlineCalls(List<FunctionCall> calls) {
-  	var changed = false
     for (call : calls) {
       for (targetTyp : call.target.typ.transitiveSupers) { // handle inherited call targets
         for (target : targetTyp.getFunctions) {
-          changed = inlineCall(call, target) || changed
+          inlineCall(call, target)
         }  
       }
   	}
-  	return changed
+  }
+  
+  
+  private def void purgeCloneDfs(TypeNode node, Set<TypeNode> visited) {
+    if (node.parent != node)
+      throw new RuntimeException("Must call with root")
+    if (!visited.add(node)) {
+      return;
+    }
+    {
+      val itr = node.prty.entrySet.iterator
+      while (itr.hasNext) {
+        val en = itr.next()
+        val target = en.value.rep
+        if (target.isClone) {
+          itr.remove()
+        }
+      }
+    }
+    {
+      val itr = node.supers.iterator
+      val newSupers = new ArrayList<TypeNode>
+      while (itr.hasNext) {
+        val sup = itr.next().rep
+        purgeCloneDfs(sup, visited)
+        if (sup.isClone) {
+          itr.remove()
+          newSupers.addAll(sup.supers)
+        }
+      }
+      node.supers.addAll(newSupers)
+    }
+  }
+  
+  private def void purgeClones(Iterable<TypeNode> nodes) {
+    val visited = new HashSet<TypeNode>
+    for (t : nodes) {
+      purgeCloneDfs(t.rep, visited)
+    }
   }
   
   private def finish() {
@@ -646,7 +661,10 @@ class TypeInference {
     ]
     
     // NATIVE MODEL
-    unifier.unifyPrty(global, "window", global)
+    global.getPrty("Object").getPrty("prototype").unify(objectProto)
+    global.getPrty("Function").getPrty("prototype").unify(functionProto)
+    functionProto.makeSubtypeOf(objectProto)
+    global.getPrty("window").unify(global)
     unifier.complete()
     val extend = global.getPrty("jQuery").getPrty("extend")
     val classCreate = global.getPrty("Class").getPrty("create")
@@ -678,7 +696,8 @@ class TypeInference {
       val y = potentialMethods.get(i+1).rep()
       if (!x.namespace) { // note: the line below is more robust, but this variant was used in the original experiments
 //      if (!x.namespace && !y.namespace) {
-        unifier.unifyLater(x,y)
+          y.makeSubtypeOf(x)
+//        unifier.unifyLater(x,y)
       }
       i = i + 2
     }
@@ -694,58 +713,38 @@ class TypeInference {
     
     val allTypes = makeTypeSet()
     
+    val contextProp = new ContextPropagation(lca)
+    
     var changed = true
     while (changed) {
       changed = false
       
-		  val subt = new SubtypeInference();
-    	subt.inferSubTypes(allTypes);
+      contextProp.propagate(allTypes)
+      
+      inlineCalls(calls)
+      unifier.complete();
+      
+      purgeClones(allTypes)
+      
+		  val subt = new SubtypeInference(unifier);
+    	changed = subt.inferSubTypes(allTypes) || changed
     	
     	// Opportunistic call inlining
-    	changed = inlineCalls(calls) || changed
+//    	changed = inlineCalls(calls) || changed
+
+//      changed = false
     }
     
 //    
     for (TypeNode _typ : allTypes) {
       val typ = _typ.rep
       for (TypeNode sup : typ.supers) {
-//          println("sdf")
         if (sup.rep() != typ) {
           typing.subtypes.getSet(sup.rep).add(typ)
         }
       }
     }
     
-//    // apply initial subtyping constraints
-//    while (!initialSubtypes.isEmpty) {
-//      val y = initialSubtypes.pop().rep()
-//      val x = initialSubtypes.pop().rep()
-//      x.makeSubtypeOfWL(y) /// WRONG?
-//    }
-//    
-//    // subtyping
-//    var changed=true
-//    while (changed) {
-////      propagateCalls(calls)
-//      changed=subsetWorklist.size > 0
-//      while (!subsetWorklist.isEmpty) {
-////        println(subsetWorklist.size)
-//        val y = subsetWorklist.pop.rep()
-//        val x = subsetWorklist.pop.rep()
-//        // x <: y
-//        addCovariant(x,y)
-//        for (x0 : x.subTypes) {
-//          // x0 <: x <: y
-//          x0.makeSubtypeOfWL(y)
-////          addSubtype(x0, y)
-//        }
-//        for (y1 : y.superTypes) {
-//          // x <: y <: y1
-//          x.makeSubtypeOfWL(y1)
-////          addSubtype(x, y1)
-//        }
-//      }
-//    }
   }
   
   def Typing inferTypes() {
@@ -760,7 +759,7 @@ class TypeInference {
 }
 
 class TypingImpl implements Typing {
-  val TypeNode global = new TypeNode
+  val TypeNode global = new TypeNode(null)
   public val typeMap = new HashMap<AstNode, TypeNode>
   val scopeMap = new HashMap<Scope, TypeNode>
   public val subtypes = new HashMap<TypeNode, HashSet<TypeNode>>
@@ -785,7 +784,7 @@ class TypingImpl implements Typing {
   override def typ(AstNode n) {
     var t = typeMap.get(n)
     if (t == null) {
-      t = new TypeNode
+      t = new TypeNode(n.enclosingFunction) // TODO optimize: use function stack during AST traversal 
       typeMap.put(n, t)
     } else {
       t = t.rep()
@@ -799,7 +798,7 @@ class TypingImpl implements Typing {
     } else {
       var obj = scopeMap.get(scope)
       if (obj == null) {
-        obj = new TypeNode
+        obj = new TypeNode(scope.enclosingFunction)
         scopeMap.put(scope, obj)
       } else {
         obj = obj.rep()
@@ -828,11 +827,12 @@ class TypingImpl implements Typing {
     }
   }
   
-  override def getPrty(TypeNode type, String varName) {
-    var t = type.rep.prty.get(varName)
+  override def getPrty(TypeNode _type, String name) {
+    val type = _type.rep
+    var t = type.prty.get(name)
     if (t == null) {
-      t = new TypeNode()
-      type.rep.prty.put(varName, t)
+      t = new TypeNode(type.context)
+      type.prty.put(name, t)
     }
     t.rep()
   }

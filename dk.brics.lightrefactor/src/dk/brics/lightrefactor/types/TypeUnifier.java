@@ -7,12 +7,17 @@ import java.util.Map;
 public class TypeUnifier {
   
   private LinkedList<TypeNode> typeQueue = new LinkedList<TypeNode>();
+  private FunctionLca lca;
   
-  public void unify(TypeNode x, TypeNode y) {
+  public TypeUnifier(FunctionLca lca) {
+    this.lca = lca;
+  }
+  
+  public boolean unify(TypeNode x, TypeNode y) {
     x = x.rep();
     y = y.rep();
     if (x == y)
-      return;
+      return false;
     if (x.rank < y.rank) {
       TypeNode tmp = x;
       x = y;
@@ -22,6 +27,8 @@ public class TypeUnifier {
     }
     y.parent = x;
     x.namespace |= y.namespace;
+    x.isClone &= y.isClone;
+    x.context = lca.lca(x.context, y.context);
     if (x.functions == null) {
       x.functions = y.functions;
     } else if (y.functions != null) {
@@ -53,6 +60,7 @@ public class TypeUnifier {
       x.supers.addAll(y.supers);
       y.supers = null;
     }
+    return true;
   }
   
   public void unifyPrty(TypeNode x, String prty, TypeNode y) {
@@ -72,12 +80,14 @@ public class TypeUnifier {
     }
   }
   
-  public void complete() {
+  public boolean complete() {
+    boolean changed = false;
     while (!typeQueue.isEmpty()) {
       TypeNode x = typeQueue.pop();
       TypeNode y = typeQueue.pop();
-      unify(x,y);
+      changed |= unify(x,y);
     }
+    return changed;
   }
   
 }
