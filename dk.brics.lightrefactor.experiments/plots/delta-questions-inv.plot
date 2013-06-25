@@ -8,7 +8,7 @@ then
     CMD="xdg-open"
 fi
 
-#./nquestions ../output/namestats.txt --delta data/namestats.full.txt --sort improvement $* >tmp/delta-questions.dat
+#./nquestions data/namestats.ct.txt --delta ../output/namestats.txt --sort improvement $* >tmp/delta-questions.dat
 ./nquestions data/namestats.orig.txt --delta ../output/namestats.txt --sort improvement $* >tmp/delta-questions.dat
 
 gnuplot <<\EOF 

@@ -1,0 +1,4 @@
+set -e
+wget http://www.brics.dk/jsrefactor/renaming-benchmarks.zip
+mkdir -p ../benchmarks
+unzip renaming-benchmarks.zip -d ../benchmarks
