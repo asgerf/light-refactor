@@ -19,13 +19,13 @@ public final class TypeNode {
   LinkNode<FunctionNode> functions = null;
   Set<TypeNode> supers = new HashSet<TypeNode>();
   
-  FunctionNode context;
+  Context context;
   
   boolean isClone = false;
   TypeNode clone = null;
   int cloneNr = -1;
 
-  TypeNode(FunctionNode context) {
+  TypeNode(Context context) {
     this.context = context;
   }
   

@@ -19,8 +19,11 @@ sb.toString()
 
 
 function UnrelatedClass() {
-	this.array /*2*/ = []
+	this.array /*1*/ = []
 }
 UnrelatedClass.prototype.append = function(x) {
-	this.array /*2*/.push(x)
+	this.array /*1*/.push(x)
 }
+
+var x = new StringBuilder() || new UnrelatedClass();
+x.array /*1*/ = [];

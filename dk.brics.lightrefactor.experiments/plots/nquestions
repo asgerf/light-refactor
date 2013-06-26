@@ -30,6 +30,8 @@ function makeSortKey() {
     switch (program.sort) {
         case 'improvement':
             return function() { return div(this.rename - this.searchReplace, this.numPrtys - this.searchReplace) }
+        case 'total':
+            return function() { return div(this.rename2 - this.searchReplace, this.numPrtys - this.searchReplace) }
         case 'baseline':
             return function() { return div(this.searchReplace, this.numPrtys) }
         default:

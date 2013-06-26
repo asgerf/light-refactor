@@ -60,8 +60,22 @@ public class FunctionLca {
     return a;
   }
   
+  public Context lca(Context a, Context b) {
+    if (a == Context.TopLevel || b == Context.TopLevel)
+      return Context.TopLevel;
+    else if (b == Context.None)
+      return a;
+    else if (a == Context.None)
+      return b;
+    else
+      return Context.function(lca(a.getFunction(), b.getFunction()));
+  }
+  
   public boolean isAncestorOf(FunctionNode anc, FunctionNode child) {
     return lca(anc,child) == anc;
+  }
+  public boolean isAncestorOf(Context anc, Context child) {
+    return lca(anc,child).equals(anc);
   }
   
 }

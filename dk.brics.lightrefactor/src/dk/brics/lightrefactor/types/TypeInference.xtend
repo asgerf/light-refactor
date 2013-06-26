@@ -7,7 +7,6 @@ import java.util.HashMap
 import java.util.HashSet
 import java.util.LinkedList
 import java.util.List
-import java.util.Map
 import java.util.Set
 import java.util.Stack
 import org.mozilla.javascript.Token
@@ -86,8 +85,8 @@ class TypeInference {
   private static val PRIMITIVE = true
   private static val NOT_PRIMITIVE = false
   
-  private val objectProto = new TypeNode(null)
-  private val functionProto = new TypeNode(null)
+  private val objectProto = new TypeNode(Context::TopLevel)
+  private val functionProto = new TypeNode(Context::TopLevel)
 
   private val functionStack = new Stack<FunctionNode>
   private def currentContext() {
@@ -142,6 +141,7 @@ class TypeInference {
       unify(t.getPrty("@param" + i), f.params.get(i).typ)
     }
     unify(t.getPrty("@return"), f.returnType)
+    unify(t.getPrty("@this"), f.thisType)
   }
   
   
@@ -180,9 +180,9 @@ class TypeInference {
         for (i : 0 ..< exp.arguments.size) {
           val arg = exp.arguments.get(i)
           visitExp(arg, NOT_VOID)
-          arg.typ.makeSubtypeOf(target.typ.getPrty("@param" + i))
+//          arg.typ.makeSubtypeOf(target.typ.getPrty("@param" + i))
         }
-        exp.typ.makeSubtypeOf(target.typ.getPrty("@return"))
+//        exp.typ.makeSubtypeOf(target.typ.getPrty("@return"))
         switch target {
           FunctionNode: {
             val numArgs = Math::min(exp.arguments.size, target.paramCount)
@@ -529,7 +529,7 @@ class TypeInference {
   
   var clonePhase = 1
   
-  private def TypeNode makeClone(TypeNode _self, FunctionNode boundCtx, FunctionNode dstCtx) {
+  private def TypeNode makeClone(TypeNode _self, Context boundCtx, Context dstCtx) {
     val self = _self.rep();
     if (self.cloneNr == clonePhase) {
       return self.clone;
@@ -538,7 +538,7 @@ class TypeInference {
       if (self.context === boundCtx) {
         self.clone = new TypeNode(dstCtx);
         self.clone.isClone = true;
-        // self.clone.supers.addAll(supers); // supers are not cloned [TODO: try with supers]
+        self.clone.supers.addAll(self.supers); // supers are not cloned [TODO: try with supers]
         for (en : self.prty.entrySet()) {
           val v = en.getValue().rep();
           if (!v.isClone) {
@@ -564,24 +564,25 @@ class TypeInference {
   }
   
   private def inlineCall(FunctionCall call, FunctionNode target) {
-    val callScope = call.getEnclosingFunction();
+    val callScope = Context::function(call.enclosingFunction);
     clonePhase = clonePhase + 1
     val numArgs = Math::min(call.arguments.size, target.params.size)
+    val targetCtx = Context::function(target)
     for (j : 0 ..< numArgs) {
       val arg = call.arguments.get(j).typ
       val parm = target.params.get(j).typ
-      unifyUnlessNull(arg, parm.makeClone(target, callScope))
+      unifyUnlessNull(arg, parm.makeClone(targetCtx, callScope))
     }
-    unifyUnlessNull(call.typ, target.returnType.makeClone(target, callScope))
     if (call instanceof NewExpression) {
-      unifyUnlessNull(call.typ, target.thisType.makeClone(target, callScope))
+      unifyUnlessNull(call.typ, target.thisType.makeClone(targetCtx, callScope))
     } else {
+      unifyUnlessNull(call.typ, target.returnType.makeClone(targetCtx, callScope))
       val targetExp = call.target
       switch targetExp {
         PropertyGet:
-          unifyUnlessNull(targetExp.left.typ, target.thisType.makeClone(target, callScope))
+          unifyUnlessNull(targetExp.left.typ, target.thisType.makeClone(targetCtx, callScope))
         ElementGet:
-          unifyUnlessNull(targetExp.target.typ, target.thisType.makeClone(target, callScope))
+          unifyUnlessNull(targetExp.target.typ, target.thisType.makeClone(targetCtx, callScope))
       }
     }
   }
@@ -736,16 +737,42 @@ class TypeInference {
       inlineCalls(calls)
       unifier.complete();
       
-      purgeClones(allTypes)
       
 		  val subt = new SubtypeInference(unifier);
     	changed = subt.inferSubTypes(allTypes) || changed
     	
+      purgeClones(allTypes)
     	// Opportunistic call inlining
 //    	changed = inlineCalls(calls) || changed
 
 //      changed = false
     }
+    
+    for (call : calls) {
+      for (j : 0 ..< call.arguments.size) {
+        call.arguments.get(j).typ.makeSubtypeOf(call.target.typ.getPrty("@arg" + j))
+      }
+      if (call instanceof NewExpression) {
+        call.typ.makeSubtypeOf(call.target.typ.getPrty("@this"))
+      } else {
+        call.typ.makeSubtypeOf(call.target.typ.getPrty("@return"))
+        val base = call.target
+        switch base {
+          PropertyGet:
+            base.left.typ.makeSubtypeOf(call.target.typ.getPrty("@this"))
+          ElementGet:
+            base.target.typ.makeSubtypeOf(call.target.typ.getPrty("@this"))
+        }
+      }
+    }
+    while (!initialSubtypes.isEmpty) {
+      val y = initialSubtypes.removeLast().rep()
+      val x = initialSubtypes.removeLast().rep() // x <: y
+      if (x != y)
+        x.supers.add(y)
+    }
+    val subt = new SubtypeInference(unifier);
+    subt.inferSubTypes(allTypes)
     
 //    
     for (TypeNode _typ : allTypes) {
@@ -771,7 +798,7 @@ class TypeInference {
 }
 
 class TypingImpl implements Typing {
-  val TypeNode global = new TypeNode(null)
+  val TypeNode global = new TypeNode(Context::TopLevel)
   public val typeMap = new HashMap<AstNode, TypeNode>
   val scopeMap = new HashMap<Scope, TypeNode>
   public val subtypes = new HashMap<TypeNode, HashSet<TypeNode>>
@@ -790,13 +817,13 @@ class TypingImpl implements Typing {
   }
   
   override def global() {
-    global
+    global.rep
   }
   
   override def typ(AstNode n) {
     var t = typeMap.get(n)
     if (t == null) {
-      t = new TypeNode(n.enclosingFunction) // TODO optimize: use function stack during AST traversal 
+      t = new TypeNode(Context::function(n.enclosingFunction)) // TODO optimize: use function stack during AST traversal 
       typeMap.put(n, t)
     } else {
       t = t.rep()
@@ -810,7 +837,7 @@ class TypingImpl implements Typing {
     } else {
       var obj = scopeMap.get(scope)
       if (obj == null) {
-        obj = new TypeNode(scope.enclosingFunction)
+        obj = new TypeNode(Context::function(scope.enclosingFunction))
         scopeMap.put(scope, obj)
       } else {
         obj = obj.rep()
@@ -843,7 +870,7 @@ class TypingImpl implements Typing {
     val type = _type.rep
     var t = type.prty.get(name)
     if (t == null) {
-      t = new TypeNode(type.context)
+      t = new TypeNode(Context::None)
       type.prty.put(name, t)
     }
     t.rep()

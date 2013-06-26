@@ -26,6 +26,8 @@ public class ContextPropagation {
       MapExtensions.getSet(search.preds, node);
       if (visited.add(node)) {
         for (Map.Entry<String,TypeNode> en : node.prty.entrySet()) {
+          if (en.getKey().startsWith("@"))
+            continue; // don't follow special properties like @argN and @return
           MapExtensions.getSet(search.preds, en.getValue().rep()).add(node);
         }
       }
