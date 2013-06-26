@@ -668,6 +668,7 @@ class TypeInference {
     unifier.complete()
     val extend = global.getPrty("jQuery").getPrty("extend")
     val classCreate = global.getPrty("Class").getPrty("create")
+    val definePrty = global.getPrty("Object").getPrty("defineProperty")
     for (call : calls) {
       if (call.target.typ === extend) {
         val t = call.typ
@@ -685,6 +686,17 @@ class TypeInference {
           val classBody = call.arguments.get(1).typ
           unifier.unifyLater(t.getPrty("prototype"), classBody)
           classBody.makeSubtypeOf(sup.getPrty("prototype"))
+        }
+      }
+      else if (call.target.typ === definePrty) {
+        if (call.arguments.size === 3) {
+          val obj = call.arguments.get(0).typ
+          val name = call.arguments.get(1)
+          val descriptor = call.arguments.get(2).typ
+          if (name instanceof StringLiteral) {
+            val nameStr = (name as StringLiteral).value
+            unify(obj.getPrty(nameStr), descriptor.getPrty("value"))
+          }
         }
       }
     }
